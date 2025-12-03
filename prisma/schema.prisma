@@ -1,0 +1,33 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AuditRun {
+  id        String   @id @default(cuid())
+  actorUpn  String
+  createdAt DateTime @default(now())
+  dryRun    Boolean
+  canary    Int
+  total     Int
+  changed   Int
+  failed    Int
+  items     AuditItem[]
+}
+
+model AuditItem {
+  id        String   @id @default(cuid())
+  runId     String
+  run       AuditRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  upn       String
+  status    String   // updated | partial | error | nochange
+  details   Json
+}

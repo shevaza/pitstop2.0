@@ -1,0 +1,9 @@
+{
+  "server": "ITC-SRV-10\\CORP",
+  "database": "TimeKeeping",
+  "user": "ZKadmin",
+  "password": "ZKadmin",
+  "attendanceQuery": "SELECT TOP ({{limit}}) * FROM Attendance ORDER BY [id] DESC",
+  "encrypt": true,
+  "trustServerCertificate": true
+}
