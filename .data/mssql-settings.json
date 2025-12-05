@@ -3,7 +3,19 @@
   "database": "TimeKeeping",
   "user": "ZKadmin",
   "password": "ZKadmin",
-  "attendanceQuery": "SELECT TOP ({{limit}}) * FROM Attendance ORDER BY [id] DESC",
+  "attendanceQuery": "SELECT TOP ({{limit}})\n       E.NAME AS EmployeeName,\nA.*\nFROM Attendance A\nLEFT JOIN Employee E\n       ON A.BadgeNumber = E.BadgeNumber\nWHERE A.VerifyTime > {{FromDate}} OR A.VerifyTime = {{FromDate}}\n  AND A.VerifyTime < {{ToDate}}\nORDER BY A.id DESC;",
+  "reports": [
+    {
+      "id": "attendance-default",
+      "name": "Attendance",
+      "query": "SELECT TOP ({{limit}})\n       E.NAME AS EmployeeName,\nA.*\nFROM Attendance A\nLEFT JOIN Employee E\n       ON A.BadgeNumber = E.BadgeNumber\nWHERE A.VerifyTime > {{FromDate}} OR A.VerifyTime = {{FromDate}}\n  AND A.VerifyTime < {{ToDate}}\nORDER BY A.id DESC;"
+    },
+    {
+      "id": "6be9c08e-28d2-405f-b58d-855b37206818",
+      "name": "Not Attending",
+      "query": "SELECT e.BadgeNumber,\n       e.NAME\nFROM Employee AS e\nWHERE ISNULL(e.DeletedFromDevice,0) = 0\nAND PositionId = 1\n  AND NOT EXISTS (\n        SELECT 1\n        FROM dbo.Attendance AS a\n        WHERE a.BadgeNumber = e.BadgeNumber\n          AND a.Status = 'Check-In'\n          AND a.VerifyTime > {{FromDate}} OR a.VerifyTime = {{FromDate}}\n          AND a.VerifyTime < DATEADD(DAY,1,{{ToDate}})\n  );"
+    }
+  ],
   "encrypt": true,
   "trustServerCertificate": true
 }

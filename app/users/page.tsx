@@ -57,6 +57,8 @@ export default function UsersPage() {
     const [nextToken, setNextToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(50);
     const [filters, setFilters] = useState<Filters>({
         name: "",
         upn: "",
@@ -131,6 +133,32 @@ export default function UsersPage() {
             return matchesName && matchesUpn && matchesTitle && matchesDepartment && matchesOffice && matchesStatus;
         });
     }, [items, filters]);
+
+    const totalPages = useMemo(
+        () => Math.max(1, Math.ceil(Math.max(filteredItems.length, 1) / pageSize)),
+        [filteredItems.length, pageSize]
+    );
+
+    const paginatedItems = useMemo(() => {
+        const start = (page - 1) * pageSize;
+        return filteredItems.slice(start, start + pageSize);
+    }, [filteredItems, page, pageSize]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [
+        filters.name,
+        filters.upn,
+        filters.title,
+        filters.department.join(","),
+        filters.office.join(","),
+        filters.status,
+        search,
+    ]);
+
+    useEffect(() => {
+        setPage((prev) => Math.min(Math.max(prev, 1), totalPages));
+    }, [totalPages]);
 
     const hasFilters = useMemo(
         () =>
@@ -222,6 +250,8 @@ export default function UsersPage() {
 
     const isReady = status === "authenticated";
     const canExport = isReady && filteredItems.length > 0;
+    const pageStart = filteredItems.length ? (page - 1) * pageSize + 1 : 0;
+    const pageEnd = filteredItems.length ? Math.min(filteredItems.length, page * pageSize) : 0;
 
     return (
         <AuthGuard>
@@ -268,6 +298,67 @@ export default function UsersPage() {
                         >
                             {loading ? "Loading..." : "Load more"}
                         </button>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-xs text-[var(--text)] shadow-[var(--shadow-soft)]">
+                    <div className="flex items-center gap-2">
+                        <span>Rows per page</span>
+                        <select
+                            className="rounded border border-[var(--border)] bg-[var(--glass)] px-2 py-1 text-[var(--text)] focus:border-[var(--text)]/60 focus:outline-none"
+                            value={pageSize}
+                            onChange={(e) => {
+                                setPageSize(parseInt(e.target.value, 10));
+                                setPage(1);
+                            }}
+                            disabled={!isReady}
+                        >
+                            {[25, 50, 100].map((size) => (
+                                <option key={size} value={size} className="bg-black">
+                                    {size}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            className="rounded border border-[var(--border)] bg-[var(--glass)] px-2 py-1 transition-colors hover:bg-[var(--glass-strong)] disabled:opacity-50"
+                            onClick={() => setPage(1)}
+                            disabled={!isReady || page <= 1 || !filteredItems.length}
+                        >
+                            First
+                        </button>
+                        <button
+                            className="rounded border border-[var(--border)] bg-[var(--glass)] px-2 py-1 transition-colors hover:bg-[var(--glass-strong)] disabled:opacity-50"
+                            onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                            disabled={!isReady || page <= 1 || !filteredItems.length}
+                        >
+                            Prev
+                        </button>
+                        <span className="px-2 text-[var(--text)]/70">
+                            Page {filteredItems.length ? page : 0} of {filteredItems.length ? totalPages : 0}
+                        </span>
+                        <button
+                            className="rounded border border-[var(--border)] bg-[var(--glass)] px-2 py-1 transition-colors hover:bg-[var(--glass-strong)] disabled:opacity-50"
+                            onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                            disabled={!isReady || !filteredItems.length || page >= totalPages}
+                        >
+                            Next
+                        </button>
+                        <button
+                            className="rounded border border-[var(--border)] bg-[var(--glass)] px-2 py-1 transition-colors hover:bg-[var(--glass-strong)] disabled:opacity-50"
+                            onClick={() => setPage(totalPages)}
+                            disabled={!isReady || !filteredItems.length || page >= totalPages}
+                        >
+                            Last
+                        </button>
+                    </div>
+                    <div className="ml-auto text-[var(--text)]/70">
+                        {filteredItems.length
+                            ? `Showing ${pageStart}-${pageEnd} of ${filteredItems.length}`
+                            : loading
+                                ? "Loading..."
+                                : "No results"}
                     </div>
                 </div>
 
@@ -368,7 +459,7 @@ export default function UsersPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredItems.map((u) => (
+                            {paginatedItems.map((u) => (
                                 <tr key={u.id} className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(14,3,219,0.12)]">
                                     <td className="p-2">
                                         <Link href={`/users/${encodeURIComponent(u.id)}`} className="text-[var(--text)] hover:text-[var(--primary)] hover:underline">

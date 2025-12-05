@@ -4,12 +4,18 @@ import AuthGuard from "@/components/AuthGuard";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
+type ReportForm = {
+    id: string;
+    name: string;
+    query: string;
+};
+
 type SettingsState = {
     server: string;
     database: string;
     user: string;
     password: string;
-    attendanceQuery: string;
+    reports: ReportForm[];
     encrypt: boolean;
     trustServerCertificate: boolean;
     hasPassword?: boolean;
@@ -24,7 +30,7 @@ export default function SettingsPage() {
         database: "",
         user: "",
         password: "",
-        attendanceQuery: "",
+        reports: [{ id: "attendance-default", name: "Attendance", query: "" }],
         encrypt: true,
         trustServerCertificate: true,
     });
@@ -33,14 +39,18 @@ export default function SettingsPage() {
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const canSave = useMemo(
-        () =>
+    const canSave = useMemo(() => {
+        const hasReports =
+            state.reports.length > 0 &&
+            state.reports.every((report) => report.name.trim().length > 0 && report.query.trim().length > 0);
+        return (
             state.server.trim().length > 0 &&
             state.database.trim().length > 0 &&
             state.user.trim().length > 0 &&
-            (state.password.trim().length > 0 || state.hasPassword),
-        [state],
-    );
+            (state.password.trim().length > 0 || state.hasPassword) &&
+            hasReports
+        );
+    }, [state]);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -52,12 +62,20 @@ export default function SettingsPage() {
                 throw new Error(msg);
             }
             const json = await res.json();
-            const settings = json.settings as SettingsState | null;
+            const settings = json.settings as (SettingsState & { attendanceQuery?: string }) | null;
+            const normalizedReports = buildReports(settings?.reports, settings?.attendanceQuery || json.defaultQuery);
             setState((prev) => ({
                 ...prev,
-                ...(settings ?? {}),
-                attendanceQuery: settings?.attendanceQuery || json.defaultQuery || "",
+                server: settings?.server ?? "",
+                database: settings?.database ?? "",
+                user: settings?.user ?? "",
+                encrypt: settings?.encrypt ?? true,
+                trustServerCertificate: settings?.trustServerCertificate ?? true,
+                hasPassword: settings?.hasPassword,
+                source: settings?.source,
+                reports: normalizedReports,
                 defaultQuery: json.defaultQuery,
+                password: "",
             }));
         } catch (err) {
             console.error(err);
@@ -76,11 +94,17 @@ export default function SettingsPage() {
         setError(null);
         setMessage(null);
         try {
+            const cleanedReports = state.reports.map((r, idx) => ({
+                id: r.id || `report-${idx + 1}`,
+                name: r.name.trim() || `Report ${idx + 1}`,
+                query: r.query.trim(),
+            }));
             const payload = {
                 server: state.server,
                 database: state.database,
                 user: state.user,
-                attendanceQuery: state.attendanceQuery || state.defaultQuery,
+                attendanceQuery: cleanedReports[0]?.query || state.defaultQuery,
+                reports: cleanedReports,
                 encrypt: state.encrypt,
                 trustServerCertificate: state.trustServerCertificate,
                 ...(state.password.trim() ? { password: state.password } : {}),
@@ -99,6 +123,7 @@ export default function SettingsPage() {
             setState((prev) => ({
                 ...prev,
                 ...json.settings,
+                reports: buildReports(json.settings?.reports, json.settings?.attendanceQuery || prev.defaultQuery),
                 password: "",
             }));
         } catch (err) {
@@ -108,6 +133,36 @@ export default function SettingsPage() {
             setSaving(false);
         }
     }, [state]);
+
+    const addReport = useCallback(() => {
+        setState((s) => ({
+            ...s,
+            reports: [...s.reports, createReport(`Report ${s.reports.length + 1}`, s.defaultQuery)],
+        }));
+    }, []);
+
+    const removeReport = useCallback((id: string) => {
+        setState((s) => {
+            if (s.reports.length <= 1) return s;
+            return { ...s, reports: s.reports.filter((r) => r.id !== id) };
+        });
+    }, []);
+
+    const updateReport = useCallback((id: string, updates: Partial<ReportForm>) => {
+        setState((s) => ({
+            ...s,
+            reports: s.reports.map((r) => (r.id === id ? { ...r, ...updates } : r)),
+        }));
+    }, []);
+
+    const resetReportQuery = useCallback((id: string) => {
+        setState((s) => ({
+            ...s,
+            reports: s.reports.map((r) =>
+                r.id === id ? { ...r, query: s.defaultQuery ?? r.query } : r,
+            ),
+        }));
+    }, []);
 
     return (
         <AuthGuard>
@@ -172,28 +227,93 @@ export default function SettingsPage() {
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-4 shadow-[var(--shadow-soft)]">
               <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-[var(--text)]">Attendance query</h2>
+                  <h2 className="text-lg font-semibold text-[var(--text)]">Attendance reports</h2>
                   <p className="text-xs text-[var(--text)]/60">
-                    Use {"{{limit}}"} as a placeholder for the requested row limit.
+                    Create one or more report queries. Use {"{{limit}}"}, {"{{FromDate}}"}, {"{{ToDate}}"} as placeholders.
                   </p>
                 </div>
-                {state.defaultQuery && (
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     className="rounded border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--glass-strong)]"
-                    onClick={() => setState((s) => ({ ...s, attendanceQuery: state.defaultQuery ?? "" }))}
+                    onClick={addReport}
                   >
-                    Reset to default
+                    Add report
                   </button>
-                )}
+                  {state.defaultQuery && (
+                    <button
+                      type="button"
+                      className="rounded border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--glass-strong)]"
+                      onClick={() =>
+                        setState((s) => ({
+                            ...s,
+                            reports: buildReports(s.reports, s.defaultQuery),
+                        }))
+                      }
+                    >
+                      Reset empty queries
+                    </button>
+                  )}
+                </div>
               </div>
-              <textarea
-                value={state.attendanceQuery}
-                onChange={(e) => setState((s) => ({ ...s, attendanceQuery: e.target.value }))}
-                className="h-40 w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--glass-strong)] p-3 text-sm text-[var(--text)] outline-none ring-0 focus:border-[var(--text)]/40"
-                placeholder={state.defaultQuery}
-              />
-              <div className="mt-2 grid gap-3 md:grid-cols-2">
+              <div className="space-y-3">
+                {state.reports.map((report, idx) => (
+                  <div key={report.id} className="rounded-xl border border-[var(--border)] bg-[var(--glass-strong)] p-3 shadow-[var(--shadow-soft)] md:p-4">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-[var(--text)]">
+                          {report.name || `Report ${idx + 1}`}
+                        </div>
+                        <div className="text-xs text-[var(--text)]/60">
+                          Report {idx + 1} • Use {"{{limit}}"} for the requested row limit and {"{{FromDate}} / {{ToDate}}"} for date filters.
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {state.defaultQuery && (
+                          <button
+                            type="button"
+                            className="rounded border border-[var(--border)] bg-[var(--glass)] px-3 py-1 text-xs text-[var(--text)] hover:bg-[var(--glass-strong)]"
+                            onClick={() => resetReportQuery(report.id)}
+                          >
+                            Use default query
+                          </button>
+                        )}
+                        {state.reports.length > 1 && (
+                          <button
+                            type="button"
+                            className="rounded border border-red-500/60 px-3 py-1 text-xs text-red-100 hover:bg-red-500/10"
+                            onClick={() => removeReport(report.id)}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <label className="flex flex-col gap-1 text-xs text-[var(--text)]/70">
+                        <span>Report name</span>
+                        <input
+                          type="text"
+                          value={report.name}
+                          onChange={(e) => updateReport(report.id, { name: e.target.value })}
+                          className="w-full rounded-lg border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-sm text-[var(--text)] outline-none ring-0 focus:border-[var(--text)]/40"
+                          placeholder={`Report ${idx + 1}`}
+                        />
+                      </label>
+                      <label className="md:col-span-2 flex flex-col gap-1 text-xs text-[var(--text)]/70">
+                        <span>Report query</span>
+                        <textarea
+                          value={report.query}
+                          onChange={(e) => updateReport(report.id, { query: e.target.value })}
+                          className="h-32 w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--glass)] p-3 text-sm text-[var(--text)] outline-none ring-0 focus:border-[var(--text)]/40"
+                          placeholder={state.defaultQuery}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <label className="flex items-center gap-2 text-sm text-[var(--text)]/80">
                   <input
                     type="checkbox"
@@ -235,6 +355,34 @@ export default function SettingsPage() {
           </div>
         </AuthGuard>
     );
+}
+
+function buildReports(reports?: ReportForm[], fallbackQuery?: string): ReportForm[] {
+    const normalized =
+        reports?.map((report, idx) => ({
+            id: report.id || `report-${idx + 1}`,
+            name: report.name?.trim() || `Report ${idx + 1}`,
+            query: (report.query ?? "").trim() || (fallbackQuery ?? ""),
+        })) ?? [];
+
+    const usable = normalized.filter((report) => report.query.trim().length > 0);
+    if (usable.length > 0) {
+        return usable;
+    }
+
+    if (fallbackQuery) {
+        return [createReport("Attendance", fallbackQuery)];
+    }
+
+    return [createReport("Attendance", "")];
+}
+
+function createReport(name: string, query?: string): ReportForm {
+    const id =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `report-${Math.random().toString(16).slice(2)}`;
+    return { id, name, query: query ?? "" };
 }
 
 function SettingCard({

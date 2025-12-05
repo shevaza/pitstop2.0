@@ -2,7 +2,7 @@
 
 import AuthGuard from "@/components/AuthGuard";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type AttendanceResponse = {
     rows: Record<string, unknown>[];
@@ -11,6 +11,13 @@ type AttendanceResponse = {
     limit: number;
     queryUsed?: string;
     source?: string;
+    report?: ReportSummary;
+    availableReports?: ReportSummary[];
+};
+
+type ReportSummary = {
+    id: string;
+    name: string;
 };
 
 export default function AttendancePage() {
@@ -20,17 +27,30 @@ export default function AttendancePage() {
     const [error, setError] = useState<string | null>(null);
     const [limit, setLimit] = useState(200);
     const [search, setSearch] = useState("");
+    const [fromDate, setFromDate] = useState("");
+    const [toDate, setToDate] = useState("");
+    const [reports, setReports] = useState<ReportSummary[]>([]);
+    const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+    const selectedReportIdRef = useRef<string | null>(null);
 
-    const load = useCallback(async () => {
+    const load = useCallback(async (reportOverride?: string | null) => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/attendance?limit=${limit}`, { cache: "no-store" });
+            const activeReportId = reportOverride ?? selectedReportIdRef.current;
+            const params = new URLSearchParams();
+            params.set("limit", String(limit));
+            if (activeReportId) params.set("reportId", activeReportId);
+            if (fromDate) params.set("fromDate", fromDate);
+            if (toDate) params.set("toDate", toDate);
+            const res = await fetch(`/api/attendance?${params.toString()}`, { cache: "no-store" });
             if (!res.ok) {
                 const msg = (await res.text()) || `Request failed with ${res.status}`;
                 throw new Error(msg);
             }
             const json = (await res.json()) as AttendanceResponse;
+            setReports(json.availableReports ?? []);
+            setSelectedReportId(json.report?.id ?? activeReportId ?? null);
             setData(json);
         } catch (err) {
             console.error(err);
@@ -39,11 +59,15 @@ export default function AttendancePage() {
         } finally {
             setLoading(false);
         }
-    }, [limit]);
+    }, [limit, fromDate, toDate]);
 
     useEffect(() => {
         if (status === "authenticated") void load();
     }, [status, load]);
+
+    useEffect(() => {
+        selectedReportIdRef.current = selectedReportId;
+    }, [selectedReportId]);
 
     const filteredRows = useMemo(() => {
         if (!search.trim()) return data?.rows ?? [];
@@ -63,7 +87,43 @@ export default function AttendancePage() {
                   Pull live attendance data from your configured MSSQL source.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap md:flex-row items-center gap-2 justify-end md:justify-end md:ml-auto">
+                <label className="flex items-center gap-2 text-sm text-[var(--text)]/80">
+                  <span>Report</span>
+                  <select
+                    className="w-48 rounded-lg border border-(--border)! bg-(--glass-strong)! px-3 py-2 text-sm text-(--text)! outline-none ring-0 focus:border-[var(--text)]/40"
+                    value={selectedReportId ?? ""}
+                    onChange={(e) => {
+                      const next = e.target.value || null;
+                      setSelectedReportId(next);
+                      void load(next);
+                    }}
+                  >
+                    {(reports.length ? reports : data?.availableReports ?? []).map((report) => (
+                      <option key={report.id} value={report.id} className="bg-gray-900">
+                        {report.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-sm text-[var(--text)]/80">
+                  <span>From</span>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="w-40 rounded-lg border border-[var(--border)] bg-[var(--glass-strong)] px-2 py-1 text-sm text-[var(--text)] outline-none ring-0 focus:border-[var(--text)]/40"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-[var(--text)]/80">
+                  <span>To</span>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="w-40 rounded-lg border border-[var(--border)] bg-[var(--glass-strong)] px-2 py-1 text-sm text-[var(--text)] outline-none ring-0 focus:border-[var(--text)]/40"
+                  />
+                </label>
                 <label className="flex items-center gap-2 text-sm text-[var(--text)]/80">
                   <span>Limit</span>
                   <input
@@ -84,7 +144,7 @@ export default function AttendancePage() {
                 </button>
                 <a
                   href="/settings"
-                  className="rounded-lg border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-sm font-medium text-[var(--text)] hover:bg-[var(--glass-strong)]"
+                  className="rounded-lg border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-sm font-medium text-[var(--text)] hover:bg-[var(--glass-strong)] hover:text-(--text)!"
                 >
                   Settings
                 </a>
@@ -118,11 +178,11 @@ export default function AttendancePage() {
               </div>
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-4 shadow-[var(--shadow-soft)]">
                 <div className="text-xs uppercase tracking-wide text-[var(--text)]/60">Query</div>
-                <div className="mt-1 truncate text-sm text-[var(--text)]/80">
-                  {data?.queryUsed || "Using default attendance query"}
+                <div className="mt-1 text-base font-semibold text-[var(--text)]">
+                  {data?.report?.name || "Attendance"}
                 </div>
                 <div className="mt-1 text-xs text-[var(--text)]/60">
-                  Edit the query in Settings if your schema differs.
+                  {data?.queryUsed || "Using default attendance query"}
                 </div>
               </div>
             </div>

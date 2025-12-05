@@ -107,9 +107,18 @@ export default function Home() {
         <h1 className="text-2xl font-semibold">M365 Bulk Updater</h1>
 
         <section className="space-y-2">
-          <input title="excel" type="file" className="btn" accept=".csv" onChange={(e) => e.target.files && handleFile(e.target.files[0])} />
+          <label className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--glass)] px-4 py-2 text-sm font-semibold text-[var(--text)] shadow-[var(--shadow-soft)] hover:bg-[var(--glass-strong)] cursor-pointer">
+            <span>Upload CSV</span>
+            <input
+              title="excel"
+              type="file"
+              accept=".csv"
+              className="sr-only"
+              onChange={(e) => e.target.files && handleFile(e.target.files[0])}
+            />
+          </label>
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2 bg-gray-900 text-white rounded disabled:opacity-60" onClick={downloadTemplate} disabled={templateLoading}>
+            <button className="px-4 py-2 border border-[var(--border)] bg-[var(--glass)] rounded text-sm font-semibold text-[var(--text)] shadow-[var(--shadow-soft)] hover:bg-[var(--glass-strong)] cursor-pointer disabled:opacity-60" onClick={downloadTemplate} disabled={templateLoading}>
               {templateLoading ? "Preparing..." : "Download template (first 10 directory users)"}
             </button>
             {templateError && <span className="text-sm text-red-600">Template: {templateError}</span>}

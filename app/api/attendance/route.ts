@@ -12,6 +12,14 @@ function sanitizeLimit(value: string | null) {
     return Math.min(Math.max(Math.round(num), 1), 2000);
 }
 
+function sanitizeDate(value: string | null) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    // Standardize to YYYY-MM-DD to keep SQL predictable
+    return date.toISOString().slice(0, 10);
+}
+
 export async function GET(request: Request) {
     const session = await auth();
     const upn = (session as any)?.upn as string | undefined;
@@ -26,8 +34,27 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const limit = sanitizeLimit(searchParams.get("limit"));
-    const queryText = (settings.attendanceQuery || DEFAULT_ATTENDANCE_QUERY)
-        .replace(/{{\s*limit\s*}}/gi, String(limit));
+    const fromDate = sanitizeDate(searchParams.get("fromDate"));
+    const toDate = sanitizeDate(searchParams.get("toDate"));
+    const requestedReportId = searchParams.get("reportId");
+    const reports =
+        (settings.reports && settings.reports.length > 0
+            ? settings.reports
+            : [
+                  {
+                      id: "attendance-default",
+                      name: "Attendance",
+                      query: settings.attendanceQuery || DEFAULT_ATTENDANCE_QUERY,
+                  },
+              ]);
+    const activeReport = reports.find((r) => r.id === requestedReportId) ?? reports[0];
+    if (!activeReport) {
+        return new Response("No report configured", { status: 400 });
+    }
+    const queryText = (activeReport.query || DEFAULT_ATTENDANCE_QUERY)
+        .replace(/{{\s*limit\s*}}/gi, String(limit))
+        .replace(/{{\s*fromdate\s*}}/gi, fromDate ? `'${fromDate}'` : "NULL")
+        .replace(/{{\s*todate\s*}}/gi, toDate ? `'${toDate}'` : "NULL");
 
     let pool: sql.ConnectionPool | null = null;
     try {
@@ -50,6 +77,8 @@ export async function GET(request: Request) {
             limit,
             fetchedAt: new Date().toISOString(),
             queryUsed: queryText,
+            report: { id: activeReport.id, name: activeReport.name },
+            availableReports: reports.map((r) => ({ id: r.id, name: r.name })),
             source: settings.server,
         });
     } catch (err) {
