@@ -1,15 +1,30 @@
 import { ConfidentialClientApplication } from "@azure/msal-node";
 
-const msal = new ConfidentialClientApplication({
-    auth: {
-        clientId: process.env.AZURE_AD_CLIENT_ID!,
-        authority: `https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}`,
-        clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-    },
-});
+let msal: ConfidentialClientApplication | null = null;
+
+function getMsalClient() {
+    const clientId = process.env.AZURE_AD_CLIENT_ID;
+    const tenantId = process.env.AZURE_AD_TENANT_ID;
+    const clientSecret = process.env.AZURE_AD_CLIENT_SECRET;
+
+    if (!clientId || !tenantId || !clientSecret) {
+        throw new Error("Missing Azure AD env vars: AZURE_AD_CLIENT_ID, AZURE_AD_TENANT_ID, AZURE_AD_CLIENT_SECRET");
+    }
+
+    if (!msal) {
+        msal = new ConfidentialClientApplication({
+            auth: {
+                clientId,
+                authority: `https://login.microsoftonline.com/${tenantId}`,
+                clientSecret,
+            },
+        });
+    }
+    return msal;
+}
 
 async function getToken() {
-    const res = await msal.acquireTokenByClientCredential({
+    const res = await getMsalClient().acquireTokenByClientCredential({
         scopes: ["https://graph.microsoft.com/.default"],
     });
     if (!res?.accessToken) throw new Error("Graph token acquisition failed");

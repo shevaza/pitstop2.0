@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth";
 import { isAllowed } from "@/lib/rbac";
 import { graphFetch } from "@/lib/graph";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function PATCH(
     req: Request,
     ctx: { params: Promise<{ id: string }> }
