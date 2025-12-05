@@ -1,7 +1,12 @@
 import NextAuth, { getServerSession, type NextAuthOptions } from "next-auth";
 import AzureAD from "next-auth/providers/azure-ad";
 
+const nextAuthSecret =
+    process.env.NEXTAUTH_SECRET ||
+    (process.env.NODE_ENV === "development" ? "dev-secret-please-change" : undefined);
+
 export const authOptions: NextAuthOptions = {
+    secret: nextAuthSecret,
     session: { strategy: "jwt" },
     pages: {
         signIn: "/login",
