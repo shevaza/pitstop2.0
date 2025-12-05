@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { isAllowed } from "@/lib/rbac";
 import { graphFetch } from "@/lib/graph";
 import pLimit from "p-limit";
-import { PrismaClient } from "@/app/generated/prisma/client";
+import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export const dynamic = "force-dynamic";
