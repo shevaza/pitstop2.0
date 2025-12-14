@@ -250,14 +250,21 @@ export default function AttendancePage() {
 
 function formatValue(value: unknown) {
     if (value === null || value === undefined) return "—";
-    if (value instanceof Date) return value.toLocaleString();
+    if (value instanceof Date) return formatUtcDate(value);
     if (typeof value === "string") {
-        const date = Date.parse(value);
-        if (!Number.isNaN(date) && value.length > 10) {
-            return new Date(date).toLocaleString();
+        // Avoid local timezone shifts: only format strings that are explicit UTC timestamps.
+        const isoUtcPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/i;
+        if (isoUtcPattern.test(value)) {
+            const date = new Date(value);
+            if (!Number.isNaN(date.getTime())) return formatUtcDate(date);
         }
         return value;
     }
     if (typeof value === "number" || typeof value === "boolean") return String(value);
     return JSON.stringify(value);
+}
+
+function formatUtcDate(date: Date) {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
 }

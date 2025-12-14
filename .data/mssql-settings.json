@@ -13,7 +13,12 @@
     {
       "id": "6be9c08e-28d2-405f-b58d-855b37206818",
       "name": "Not Attending",
-      "query": "SELECT e.BadgeNumber,\n       e.NAME\nFROM Employee AS e\nWHERE ISNULL(e.DeletedFromDevice,0) = 0\nAND PositionId = 1\n  AND NOT EXISTS (\n        SELECT 1\n        FROM dbo.Attendance AS a\n        WHERE a.BadgeNumber = e.BadgeNumber\n          AND a.Status = 'Check-In'\n          AND a.VerifyTime > {{FromDate}} OR a.VerifyTime = {{FromDate}}\n          AND a.VerifyTime < DATEADD(DAY,1,{{ToDate}})\n  );"
+      "query": "SELECT e.BadgeNumber,\n       e.NAME\nFROM Employee AS e\nWHERE ISNULL(e.DeletedFromDevice,0) = 0\nAND PositionId = 1\n  AND NOT EXISTS (\n        SELECT 1\n        FROM dbo.Attendance AS a\n        WHERE a.BadgeNumber = e.BadgeNumber\n          AND a.Status = 'Check-In'\n          AND a.VerifyTime > {{FromDate}}\n          AND a.VerifyTime < DATEADD(DAY,1,{{ToDate}})\n  )\nORDER BY e.NAME ASC"
+    },
+    {
+      "id": "06710fbb-46f1-4939-ba44-663f9ae68bff",
+      "name": "FirstIN LastOut",
+      "query": "SELECT TOP ({{limit}}) * FROM Attendance ORDER BY [Date] DESC"
     }
   ],
   "encrypt": true,

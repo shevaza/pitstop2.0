@@ -21,6 +21,8 @@ export default function OrgChartClient() {
     const [loading, setLoading] = useState(false);
     const [filter, setFilter] = useState(""); // optional department filter (client-side)
     const [zoom, setZoom] = useState(1);
+    const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+    const [exporting, setExporting] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
     async function load() {
@@ -68,8 +70,30 @@ export default function OrgChartClient() {
         return roots;
     }, [items, filter]);
 
-    const Card = ({ n }: { n: Node }) => (
-        <div className="mx-auto  rounded-xl border bg-white shadow-sm px-3 py-2 text-center min-w-48 max-w-100">
+    const expandableIds = useMemo(() => {
+        const ids = new Set<string>();
+        const walk = (n: Node) => {
+            if (n.children.length) ids.add(n.id);
+            n.children.forEach(walk);
+        };
+        forest.forEach(walk);
+        return ids;
+    }, [forest]);
+
+    const toggleNode = (id: string) => {
+        setCollapsed((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const collapseAll = () => setCollapsed(new Set(expandableIds));
+    const expandAll = () => setCollapsed(new Set());
+
+    const Card = ({ n, isCollapsed }: { n: Node; isCollapsed: boolean }) => (
+        <div className="relative mx-auto rounded-xl border bg-white shadow-sm px-3 py-2 text-center min-w-48 max-w-100">
             <img
                 src={`/api/users/${encodeURIComponent(n.id)}/photo`}
                 alt=""
@@ -85,23 +109,159 @@ export default function OrgChartClient() {
             <div className="text-xs text-gray-600">{n.jobTitle || "—"}</div>
             <div className="text-[10px] text-gray-500">{n.department || "—"}</div>
             <div className="mt-2 text-[10px] text-gray-400">{n.upn}</div>
+            {n.children.length > 0 && (
+                <button
+                    type="button"
+                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-blue-600 text-white text-xs shadow hover:bg-blue-800 hover:text-white"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleNode(n.id);
+                    }}
+                    aria-label={isCollapsed ? "Expand children" : "Collapse children"}
+                >
+                    {isCollapsed ? "+" : "−"}
+                </button>
+            )}
         </div>
     );
 
-    const renderNode = (n: Node) => (
-        <TreeNode key={n.id} label={<Card n={n} />}>
-            {n.children.map(renderNode)}
-        </TreeNode>
-    );
+    const renderNode = (n: Node) => {
+        const isCollapsed = collapsed.has(n.id);
+        return (
+            <TreeNode
+                key={n.id}
+                className={`org-branch ${isCollapsed ? "collapsed" : "expanded"}`}
+                label={<Card n={n} isCollapsed={isCollapsed} />}
+            >
+                {n.children.map(renderNode)}
+            </TreeNode>
+        );
+    };
 
-    async function exportPng() {
-        if (!ref.current) return;
-        const { toPng } = await import("html-to-image");
-        const dataUrl = await toPng(ref.current, { pixelRatio: 2, quality: 1 });
-        const a = document.createElement("a");
-        a.href = dataUrl;
-        a.download = "orgchart.png";
-        a.click();
+    async function exportPdf() {
+        if (forest.length === 0 || exporting) return;
+        setExporting(true);
+
+        type Measure = { width: number; height: number; children: Measure[] };
+        const nodeW = 70;        // mm-ish logical units
+        const nodeH = 38;
+        const gapX = 20;
+        const gapY = 30;
+        const rootGapY = 40;
+        const margin = 10;
+
+        const measureTree = (n: Node): Measure => {
+            const childMeasures = n.children.map(measureTree);
+            const childrenWidth =
+                childMeasures.reduce((acc, m) => acc + m.width, 0) +
+                gapX * Math.max(childMeasures.length - 1, 0);
+            const width = Math.max(nodeW, childrenWidth);
+            const childrenHeight = childMeasures.length
+                ? gapY + Math.max(...childMeasures.map(c => c.height))
+                : 0;
+            const height = nodeH + childrenHeight;
+            return { width, height, children: childMeasures };
+        };
+
+        type Positioned = {
+            n: Node;
+            measure: Measure;
+            x: number; // center
+            y: number; // top
+            children: Positioned[];
+        };
+
+        const layoutTree = (n: Node, measure: Measure, startX: number, startY: number): Positioned => {
+            const xCenter = startX + measure.width / 2;
+            let cursor = startX;
+            const kids: Positioned[] = [];
+            n.children.forEach((child, idx) => {
+                const m = measure.children[idx];
+                const childPos = layoutTree(child, m, cursor, startY + nodeH + gapY);
+                kids.push(childPos);
+                cursor += m.width + gapX;
+            });
+            return { n, measure, x: xCenter, y: startY, children: kids };
+        };
+
+        const rootMeasures = forest.map(measureTree);
+        const maxRootWidth = Math.max(nodeW, ...rootMeasures.map(r => r.width));
+        let cursorY = 0;
+        const layouts: Positioned[] = [];
+        forest.forEach((root, idx) => {
+            const m = rootMeasures[idx];
+            layouts.push(layoutTree(root, m, (maxRootWidth - m.width) / 2, cursorY));
+            cursorY += m.height + rootGapY;
+        });
+
+        const contentWidth = maxRootWidth;
+        const contentHeight = cursorY - rootGapY; // subtract last gap
+
+        try {
+            const { jsPDF } = await import("jspdf");
+            const orientation = contentWidth > contentHeight ? "landscape" : "portrait";
+            const doc = new jsPDF({ orientation });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const scale = Math.min(
+                (pageWidth - margin * 2) / Math.max(contentWidth, 1),
+                (pageHeight - margin * 2) / Math.max(contentHeight, 1)
+            );
+
+            const drawNode = (p: Positioned) => {
+                const xCenter = margin + p.x * scale;
+                const yTop = margin + p.y * scale;
+                const w = nodeW * scale;
+                const h = nodeH * scale;
+                const x = xCenter - w / 2;
+
+                // connector lines to children
+                p.children.forEach(child => {
+                    const childX = margin + child.x * scale;
+                    const childY = margin + child.y * scale;
+                    doc.setDrawColor(180, 180, 180);
+                    doc.line(xCenter, yTop + h, childX, childY);
+                });
+
+                doc.setFillColor(247, 249, 252);
+                doc.setDrawColor(203, 213, 225);
+                doc.roundedRect(x, yTop, w, h, 3 * scale, 3 * scale, "FD");
+
+                const nameSize = Math.max(6, 10 * scale);
+                const jobSize = Math.max(5, 8 * scale);
+                const infoSize = Math.max(5, 7 * scale);
+                doc.setTextColor(17, 24, 39);
+                doc.setFontSize(nameSize);
+                doc.text(p.n.displayName || p.n.upn, x + 4 * scale, yTop + 10 * scale, {
+                    maxWidth: w - 8 * scale,
+                });
+                doc.setFontSize(jobSize);
+                doc.setTextColor(55, 65, 81);
+                doc.text(p.n.jobTitle || "—", x + 4 * scale, yTop + 18 * scale, {
+                    maxWidth: w - 8 * scale,
+                });
+                doc.setFontSize(infoSize);
+                doc.setTextColor(107, 114, 128);
+                doc.text(p.n.department || "—", x + 4 * scale, yTop + 25 * scale, {
+                    maxWidth: w - 8 * scale,
+                });
+                doc.setTextColor(156, 163, 175);
+                doc.text(p.n.upn, x + 4 * scale, yTop + 32 * scale, {
+                    maxWidth: w - 8 * scale,
+                });
+
+                p.children.forEach(drawNode);
+            };
+
+            layouts.forEach(drawNode);
+            doc.save("orgchart.pdf");
+        } catch (err) {
+            console.error("Failed to export PDF", err);
+            alert("Could not build the PDF. Please try again or reduce the chart size.");
+        } finally {
+            setExporting(false);
+        }
     }
 
     return (
@@ -132,8 +292,27 @@ export default function OrgChartClient() {
                             +
                         </button>
                     </div>
-                    <button onClick={exportPng} className="px-3 py-2 rounded bg-black text-white hover:bg-white hover:text-black">Export PNG</button>
-                    <button onClick={() => window.print()} className="px-3 py-2 rounded bg-black text-white hover:bg-white hover:text-black">Print</button>
+                    <button
+                        onClick={exportPdf}
+                        disabled={exporting}
+                        className="px-3 py-2 rounded bg-black text-white hover:bg-white hover:text-black disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {exporting ? "Exporting…" : "Export PDF"}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={expandAll}
+                        className="px-3 py-2 rounded bg-black text-white hover:bg-white hover:text-black"
+                    >
+                        Expand All
+                    </button>
+                    <button
+                        type="button"
+                        onClick={collapseAll}
+                        className="px-3 py-2 rounded bg-black text-white hover:bg-white hover:text-black"
+                    >
+                        Collapse All
+                    </button>
                 </div>
             </div>
 
@@ -156,23 +335,45 @@ export default function OrgChartClient() {
                 >
                     {/* Multiple roots supported */}
                     <div className="flex flex-col gap-16">
-                        {forest.map(root => (
-                            <div key={root.id} className="overflow-auto">
-                                <Tree
-                                    lineColor="#D1D5DB"      // gray-300
-                                    lineWidth={"2px"}
-                                    label={<Card n={root} />}
+                        {forest.map(root => {
+                            const rootCollapsed = collapsed.has(root.id);
+                            return (
+                                <div
+                                    key={root.id}
+                                    className={`org-tree-root ${rootCollapsed ? "collapsed" : "expanded"} overflow-auto`}
                                 >
-                                    {root.children.map(renderNode)}
-                                </Tree>
-                            </div>
-                        ))}
+                                    <Tree
+                                        lineColor="#D1D5DB"      // gray-300
+                                        lineWidth={"2px"}
+                                        label={<Card n={root} isCollapsed={rootCollapsed} />}
+                                    >
+                                        {root.children.map(renderNode)}
+                                    </Tree>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
 
             {/* Print tweaks */}
             <style jsx global>{`
+        .org-branch > ul,
+        .org-tree-root > ul > li > ul {
+          transition: max-height 240ms ease, opacity 180ms ease, transform 180ms ease;
+          max-height: 9999px;
+          opacity: 1;
+          transform: scaleY(1);
+          transform-origin: top center;
+        }
+        .org-branch.collapsed > ul,
+        .org-tree-root.collapsed > ul > li > ul {
+          max-height: 0 !important;
+          opacity: 0;
+          transform: scaleY(0.95);
+          pointer-events: none;
+          overflow: hidden;
+        }
         @media print {
           .print\\:hidden { display: none !important; }
           header, nav, footer { display: none !important; }
@@ -183,4 +384,3 @@ export default function OrgChartClient() {
         </main>
     );
 }
-
