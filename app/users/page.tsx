@@ -38,6 +38,10 @@ type Filters = {
     status: StatusFilter;
 };
 
+type SortKey = "name" | "upn" | "title" | "department" | "office" | "status";
+type SortDirection = "asc" | "desc";
+type SortState = { key: SortKey; direction: SortDirection } | null;
+
 const normalizeText = (value: string | null | undefined) => value?.toLowerCase().trim() ?? "";
 const normalizeKey = (value: string | null | undefined) => {
     const trimmed = (value ?? "").trim();
@@ -59,6 +63,7 @@ export default function UsersPage() {
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
+    const [sort, setSort] = useState<SortState>(null);
     const [filters, setFilters] = useState<Filters>({
         name: "",
         upn: "",
@@ -128,21 +133,45 @@ export default function UsersPage() {
             const matchesDepartment = filters.department.length === 0 || filters.department.includes(departmentKey);
             const officeKey = normalizeKey(u.officeLocation);
             const matchesOffice = filters.office.length === 0 || filters.office.includes(officeKey);
-            const matchesStatus = filters.status === ""
-                || (filters.status === "enabled" ? u.accountEnabled : !u.accountEnabled);
-            return matchesName && matchesUpn && matchesTitle && matchesDepartment && matchesOffice && matchesStatus;
-        });
-    }, [items, filters]);
+        const matchesStatus = filters.status === ""
+            || (filters.status === "enabled" ? u.accountEnabled : !u.accountEnabled);
+        return matchesName && matchesUpn && matchesTitle && matchesDepartment && matchesOffice && matchesStatus;
+    });
+}, [items, filters]);
+
+    const sortedItems = useMemo(() => {
+        if (!sort) return filteredItems;
+        const valueFor = (u: User) => {
+            switch (sort.key) {
+                case "name":
+                    return normalizeText(u.displayName || `${u.givenName ?? ""} ${u.surname ?? ""}`.trim() || "(no name)");
+                case "upn":
+                    return normalizeText(u.userPrincipalName);
+                case "title":
+                    return normalizeText(u.jobTitle);
+                case "department":
+                    return normalizeText(u.department);
+                case "office":
+                    return normalizeText(u.officeLocation);
+                case "status":
+                    return u.accountEnabled ? "enabled" : "disabled";
+                default:
+                    return "";
+            }
+        };
+        const direction = sort.direction === "asc" ? 1 : -1;
+        return [...filteredItems].sort((a, b) => valueFor(a).localeCompare(valueFor(b)) * direction);
+    }, [filteredItems, sort]);
 
     const totalPages = useMemo(
-        () => Math.max(1, Math.ceil(Math.max(filteredItems.length, 1) / pageSize)),
-        [filteredItems.length, pageSize]
+        () => Math.max(1, Math.ceil(Math.max(sortedItems.length, 1) / pageSize)),
+        [sortedItems.length, pageSize]
     );
 
     const paginatedItems = useMemo(() => {
         const start = (page - 1) * pageSize;
-        return filteredItems.slice(start, start + pageSize);
-    }, [filteredItems, page, pageSize]);
+        return sortedItems.slice(start, start + pageSize);
+    }, [sortedItems, page, pageSize]);
 
     useEffect(() => {
         setPage(1);
@@ -154,6 +183,8 @@ export default function UsersPage() {
         filters.office.join(","),
         filters.status,
         search,
+        sort?.key,
+        sort?.direction,
     ]);
 
     useEffect(() => {
@@ -172,9 +203,9 @@ export default function UsersPage() {
     );
 
     const handleExportExcel = useCallback(() => {
-        if (!filteredItems.length) return;
+        if (!sortedItems.length) return;
         const header = ["Name", "UPN", "Title", "Department", "Office", "Status"];
-        const rows = filteredItems.map((u) => [
+        const rows = sortedItems.map((u) => [
             u.displayName || `${u.givenName ?? ""} ${u.surname ?? ""}`.trim() || "(no name)",
             u.userPrincipalName,
             u.jobTitle ?? "",
@@ -186,10 +217,10 @@ export default function UsersPage() {
         const workbook = XLSXUtils.book_new();
         XLSXUtils.book_append_sheet(workbook, worksheet, "Users");
         writeFileXLSX(workbook, "users.xlsx");
-    }, [filteredItems]);
+    }, [sortedItems]);
 
     const handleExportPdf = useCallback(async () => {
-        if (!tableRef.current || !filteredItems.length) return;
+        if (!tableRef.current || !sortedItems.length) return;
         try {
             const dataUrl = await toPng(tableRef.current, {
                 cacheBust: true,
@@ -213,7 +244,7 @@ export default function UsersPage() {
         } catch (error) {
             console.error("Failed to export users table as PDF", error);
         }
-    }, [filteredItems]);
+    }, [sortedItems]);
 
     const load = useCallback(async (reset = false, cursor?: string | null) => {
         setLoading(true);
@@ -248,10 +279,24 @@ export default function UsersPage() {
         load(false, nextToken);
     }, [status, nextToken, load]);
 
+    const toggleSort = useCallback((key: SortKey) => {
+        setSort((prev) => {
+            if (prev?.key === key) {
+                return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+            }
+            return { key, direction: "asc" };
+        });
+    }, []);
+
+    const sortLabel = (key: SortKey) => {
+        if (!sort || sort.key !== key) return "";
+        return sort.direction === "asc" ? "▲" : "▼";
+    };
+
     const isReady = status === "authenticated";
-    const canExport = isReady && filteredItems.length > 0;
-    const pageStart = filteredItems.length ? (page - 1) * pageSize + 1 : 0;
-    const pageEnd = filteredItems.length ? Math.min(filteredItems.length, page * pageSize) : 0;
+    const canExport = isReady && sortedItems.length > 0;
+    const pageStart = sortedItems.length ? (page - 1) * pageSize + 1 : 0;
+    const pageEnd = sortedItems.length ? Math.min(sortedItems.length, page * pageSize) : 0;
 
     return (
         <AuthGuard>
@@ -324,38 +369,38 @@ export default function UsersPage() {
                         <button
                             className="rounded border border-[var(--border)] bg-[var(--glass)] px-2 py-1 transition-colors hover:bg-[var(--glass-strong)] disabled:opacity-50"
                             onClick={() => setPage(1)}
-                            disabled={!isReady || page <= 1 || !filteredItems.length}
+                            disabled={!isReady || page <= 1 || !sortedItems.length}
                         >
                             First
                         </button>
                         <button
                             className="rounded border border-[var(--border)] bg-[var(--glass)] px-2 py-1 transition-colors hover:bg-[var(--glass-strong)] disabled:opacity-50"
                             onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                            disabled={!isReady || page <= 1 || !filteredItems.length}
+                            disabled={!isReady || page <= 1 || !sortedItems.length}
                         >
                             Prev
                         </button>
                         <span className="px-2 text-[var(--text)]/70">
-                            Page {filteredItems.length ? page : 0} of {filteredItems.length ? totalPages : 0}
+                            Page {sortedItems.length ? page : 0} of {sortedItems.length ? totalPages : 0}
                         </span>
                         <button
                             className="rounded border border-[var(--border)] bg-[var(--glass)] px-2 py-1 transition-colors hover:bg-[var(--glass-strong)] disabled:opacity-50"
                             onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-                            disabled={!isReady || !filteredItems.length || page >= totalPages}
+                            disabled={!isReady || !sortedItems.length || page >= totalPages}
                         >
                             Next
                         </button>
                         <button
                             className="rounded border border-[var(--border)] bg-[var(--glass)] px-2 py-1 transition-colors hover:bg-[var(--glass-strong)] disabled:opacity-50"
                             onClick={() => setPage(totalPages)}
-                            disabled={!isReady || !filteredItems.length || page >= totalPages}
+                            disabled={!isReady || !sortedItems.length || page >= totalPages}
                         >
                             Last
                         </button>
                     </div>
                     <div className="ml-auto text-[var(--text)]/70">
-                        {filteredItems.length
-                            ? `Showing ${pageStart}-${pageEnd} of ${filteredItems.length}`
+                        {sortedItems.length
+                            ? `Showing ${pageStart}-${pageEnd} of ${sortedItems.length}`
                             : loading
                                 ? "Loading..."
                                 : "No results"}
@@ -366,12 +411,54 @@ export default function UsersPage() {
                     <table ref={tableRef} className="min-w-full text-sm text-[var(--text)]">
                         <thead>
                             <tr className="bg-[color:rgba(255,255,255,0.06)] p-2 text-[var(--text)]/70">
-                                <th className="p-2 text-left">Name</th>
-                                <th className="p-2 text-left">UPN</th>
-                                <th className="p-2 text-left">Title</th>
-                                <th className="p-2 text-left">Dept</th>
-                                <th className="p-2 text-left">Office</th>
-                                <th className="p-2 text-left">Status</th>
+                                <th className="p-2 text-left">
+                                    <button
+                                        className="flex items-center gap-1 text-left text-[var(--text)]/70 hover:text-[var(--text)]"
+                                        onClick={() => toggleSort("name")}
+                                    >
+                                        Name <span>{sortLabel("name")}</span>
+                                    </button>
+                                </th>
+                                <th className="p-2 text-left">
+                                    <button
+                                        className="flex items-center gap-1 text-left text-[var(--text)]/70 hover:text-[var(--text)]"
+                                        onClick={() => toggleSort("upn")}
+                                    >
+                                        UPN <span>{sortLabel("upn")}</span>
+                                    </button>
+                                </th>
+                                <th className="p-2 text-left">
+                                    <button
+                                        className="flex items-center gap-1 text-left text-[var(--text)]/70 hover:text-[var(--text)]"
+                                        onClick={() => toggleSort("title")}
+                                    >
+                                        Title <span>{sortLabel("title")}</span>
+                                    </button>
+                                </th>
+                                <th className="p-2 text-left">
+                                    <button
+                                        className="flex items-center gap-1 text-left text-[var(--text)]/70 hover:text-[var(--text)]"
+                                        onClick={() => toggleSort("department")}
+                                    >
+                                        Dept <span>{sortLabel("department")}</span>
+                                    </button>
+                                </th>
+                                <th className="p-2 text-left">
+                                    <button
+                                        className="flex items-center gap-1 text-left text-[var(--text)]/70 hover:text-[var(--text)]"
+                                        onClick={() => toggleSort("office")}
+                                    >
+                                        Office <span>{sortLabel("office")}</span>
+                                    </button>
+                                </th>
+                                <th className="p-2 text-left">
+                                    <button
+                                        className="flex items-center gap-1 text-left text-[var(--text)]/70 hover:text-[var(--text)]"
+                                        onClick={() => toggleSort("status")}
+                                    >
+                                        Status <span>{sortLabel("status")}</span>
+                                    </button>
+                                </th>
                             </tr>
                             <tr className="bg-[var(--glass-strong)] text-xs text-[var(--text)]/70">
                                 <th className="p-2">
@@ -481,7 +568,7 @@ export default function UsersPage() {
                                     </td>
                                 </tr>
                             ))}
-                            {!filteredItems.length && !loading && (
+                            {!sortedItems.length && !loading && (
                                 <tr>
                                     <td className="p-4 text-[var(--text)]/70" colSpan={6}>
                                         {hasFilters ? "No users match the selected filters" : "No users"}

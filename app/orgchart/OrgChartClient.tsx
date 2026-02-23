@@ -360,17 +360,15 @@ export default function OrgChartClient() {
             <style jsx global>{`
         .org-branch > ul,
         .org-tree-root > ul > li > ul {
-          transition: max-height 240ms ease, opacity 180ms ease, transform 180ms ease;
+          transition: max-height 240ms ease, transform 240ms ease;
           max-height: 9999px;
-          opacity: 1;
-          transform: scaleY(1);
-          transform-origin: top center;
+          transform: translateY(0);
+          transform-origin: top center; /* keeps slide aligned to parent */
         }
         .org-branch.collapsed > ul,
         .org-tree-root.collapsed > ul > li > ul {
           max-height: 0 !important;
-          opacity: 0;
-          transform: scaleY(0.95);
+          transform: translateY(-12px);
           pointer-events: none;
           overflow: hidden;
         }
