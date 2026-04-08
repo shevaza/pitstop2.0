@@ -23,7 +23,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-8 text-center shadow-[var(--shadow-soft)] backdrop-blur-2xl">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--text)]">
-            Sign in to ITCAN365
+            Sign in to Pitstop 2.0
           </h1>
           <p className="mt-2 text-sm text-[var(--text)]/70">
             Use your Microsoft 365 account to continue.

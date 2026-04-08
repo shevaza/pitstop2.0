@@ -3,7 +3,7 @@ import "./globals.css";
 import HeaderNav from "@/components/HeaderNav";
 import MainContainer from "@/components/MainContainer";
 
-export const metadata = { title: "ITCAN365" };
+export const metadata = { title: "PitStop 2.0" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
