@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { createAsset, listAssets } from "@/lib/assets";
 import { assertModuleAccess } from "@/lib/module-auth";
+import { deleteAsset, getAssetById, updateAsset } from "@/lib/assets";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,24 +38,31 @@ async function assertAuthorized() {
     return assertModuleAccess("assets");
 }
 
-export async function GET() {
+export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
         await assertAuthorized();
-        const items = await listAssets();
-        return Response.json({ items });
+        const { id } = await ctx.params;
+        const asset = await getAssetById(decodeURIComponent(id));
+
+        if (!asset) {
+            return new Response("Asset not found", { status: 404 });
+        }
+
+        return Response.json({ asset });
     } catch (error) {
         if (error instanceof Response) return error;
-        console.error("GET /api/assets failed", error);
-        return new Response("Failed to load assets", { status: 500 });
+        console.error("GET /api/assets/[id] failed", error);
+        return new Response("Failed to load asset", { status: 500 });
     }
 }
 
-export async function POST(req: Request) {
+export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
         const actorUpn = await assertAuthorized();
+        const { id } = await ctx.params;
         const parsed = assetPayloadSchema.parse(await req.json());
 
-        const asset = await createAsset({
+        const asset = await updateAsset(decodeURIComponent(id), {
             assetTag: parsed.assetTag,
             name: parsed.name,
             assetGroup: parsed.assetGroup,
@@ -69,13 +76,30 @@ export async function POST(req: Request) {
             actorUpn,
         });
 
-        return Response.json({ asset }, { status: 201 });
+        if (!asset) {
+            return new Response("Asset not found", { status: 404 });
+        }
+
+        return Response.json({ asset });
     } catch (error) {
         if (error instanceof Response) return error;
         if (error instanceof z.ZodError) {
             return new Response(JSON.stringify(error.flatten()), { status: 400 });
         }
-        console.error("POST /api/assets failed", error);
-        return new Response("Failed to create asset", { status: 500 });
+        console.error("PATCH /api/assets/[id] failed", error);
+        return new Response("Failed to update asset", { status: 500 });
+    }
+}
+
+export async function DELETE(_: Request, ctx: { params: Promise<{ id: string }> }) {
+    try {
+        await assertAuthorized();
+        const { id } = await ctx.params;
+        await deleteAsset(decodeURIComponent(id));
+        return new Response(null, { status: 204 });
+    } catch (error) {
+        if (error instanceof Response) return error;
+        console.error("DELETE /api/assets/[id] failed", error);
+        return new Response("Failed to delete asset", { status: 500 });
     }
 }

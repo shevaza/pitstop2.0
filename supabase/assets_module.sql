@@ -25,6 +25,7 @@ create table if not exists public.assets (
     id uuid primary key default gen_random_uuid(),
     asset_tag text not null unique,
     name text not null,
+    asset_group text,
     asset_type text not null,
     status text not null default 'active',
     serial_number text,
@@ -37,6 +38,8 @@ create table if not exists public.assets (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
+
+alter table if exists public.assets add column if not exists asset_group text;
 
 create or replace function public.set_updated_at()
 returns trigger

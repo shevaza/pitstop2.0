@@ -14,7 +14,7 @@ function assertSupabaseEnv() {
 type Primitive = string | number | boolean | null;
 
 type SupabaseRequestOptions = {
-    method?: "GET" | "POST" | "PATCH";
+    method?: "GET" | "POST" | "PATCH" | "DELETE";
     query?: Record<string, Primitive>;
     body?: unknown;
     headers?: Record<string, string>;

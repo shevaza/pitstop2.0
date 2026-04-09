@@ -26,6 +26,7 @@ export type AssetRecord = {
     id: string;
     asset_tag: string;
     name: string;
+    asset_group?: string | null;
     asset_type: string;
     status: string;
     serial_number?: string | null;
@@ -106,9 +107,31 @@ export async function listAssets() {
     });
 }
 
+export async function getAssetById(id: string) {
+    const items = await supabaseRequest<AssetRecord[]>("assets", {
+        query: {
+            select: "*,assigned_user:asset_users!assets_assigned_user_id_fkey(*)",
+            id: `eq.${id}`,
+            limit: 1,
+        },
+    });
+
+    return items[0] ?? null;
+}
+
+async function resolveAssignedUserId(assignedUser?: Partial<DirectoryUser> | null) {
+    if (!assignedUser?.userPrincipalName) {
+        return null;
+    }
+
+    const savedUser = await upsertAssetUserSnapshot(assignedUser);
+    return savedUser.id ?? null;
+}
+
 export async function createAsset(input: {
     assetTag: string;
     name: string;
+    assetGroup?: string | null;
     assetType: string;
     status: string;
     serialNumber?: string | null;
@@ -118,12 +141,7 @@ export async function createAsset(input: {
     assignedUser?: Partial<DirectoryUser> | null;
     actorUpn: string;
 }) {
-    let assignedUserId: string | null = null;
-
-    if (input.assignedUser?.userPrincipalName) {
-        const savedUser = await upsertAssetUserSnapshot(input.assignedUser);
-        assignedUserId = savedUser.id ?? null;
-    }
+    const assignedUserId = await resolveAssignedUserId(input.assignedUser);
 
     const [created] = await supabaseRequest<AssetRecord[]>("assets", {
         method: "POST",
@@ -136,6 +154,7 @@ export async function createAsset(input: {
         body: {
             asset_tag: input.assetTag,
             name: input.name,
+            asset_group: input.assetGroup ?? null,
             asset_type: input.assetType,
             status: input.status,
             serial_number: input.serialNumber ?? null,
@@ -149,6 +168,60 @@ export async function createAsset(input: {
     });
 
     return created;
+}
+
+export async function updateAsset(id: string, input: {
+    assetTag: string;
+    name: string;
+    assetGroup?: string | null;
+    assetType: string;
+    status: string;
+    serialNumber?: string | null;
+    manufacturer?: string | null;
+    model?: string | null;
+    notes?: string | null;
+    assignedUser?: Partial<DirectoryUser> | null;
+    actorUpn: string;
+}) {
+    const assignedUserId = await resolveAssignedUserId(input.assignedUser);
+
+    const [updated] = await supabaseRequest<AssetRecord[]>("assets", {
+        method: "PATCH",
+        query: {
+            select: "*,assigned_user:asset_users!assets_assigned_user_id_fkey(*)",
+            id: `eq.${id}`,
+        },
+        headers: {
+            Prefer: "return=representation",
+        },
+        body: {
+            asset_tag: input.assetTag,
+            name: input.name,
+            asset_group: input.assetGroup ?? null,
+            asset_type: input.assetType,
+            status: input.status,
+            serial_number: input.serialNumber ?? null,
+            manufacturer: input.manufacturer ?? null,
+            model: input.model ?? null,
+            notes: input.notes ?? null,
+            assigned_user_id: assignedUserId,
+            updated_by_upn: input.actorUpn,
+        },
+    });
+
+    return updated ?? null;
+}
+
+export async function deleteAsset(id: string) {
+    await supabaseRequest<null>("assets", {
+        method: "DELETE",
+        query: {
+            id: `eq.${id}`,
+        },
+        headers: {
+            Prefer: "return=minimal",
+        },
+    });
 }
 
 export async function searchCachedAssetUsers(search: string) {
