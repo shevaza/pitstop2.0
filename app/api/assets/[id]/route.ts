@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { assertModuleAccess } from "@/lib/module-auth";
-import { deleteAsset, getAssetById, updateAsset } from "@/lib/assets";
+import { deleteAsset, getAssetById, updateAsset, type DirectoryUser } from "@/lib/assets";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,6 +38,28 @@ async function assertAuthorized() {
     return assertModuleAccess("assets");
 }
 
+function normalizeAssignedUser(
+    assignedUser: z.infer<typeof assetPayloadSchema>["assignedUser"],
+): Partial<DirectoryUser> | null {
+    if (!assignedUser) return null;
+
+    return {
+        id: assignedUser.id ?? undefined,
+        userPrincipalName: assignedUser.userPrincipalName,
+        displayName: assignedUser.displayName ?? undefined,
+        givenName: assignedUser.givenName ?? undefined,
+        surname: assignedUser.surname ?? undefined,
+        jobTitle: assignedUser.jobTitle ?? undefined,
+        department: assignedUser.department ?? undefined,
+        officeLocation: assignedUser.officeLocation ?? undefined,
+        mobilePhone: assignedUser.mobilePhone ?? undefined,
+        employeeId: assignedUser.employeeId ?? undefined,
+        employeeType: assignedUser.employeeType ?? undefined,
+        usageLocation: assignedUser.usageLocation ?? undefined,
+        accountEnabled: assignedUser.accountEnabled ?? undefined,
+    };
+}
+
 export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
         await assertAuthorized();
@@ -72,7 +94,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
             manufacturer: parsed.manufacturer,
             model: parsed.model,
             notes: parsed.notes,
-            assignedUser: parsed.assignedUser ?? null,
+            assignedUser: normalizeAssignedUser(parsed.assignedUser),
             actorUpn,
         });
 
