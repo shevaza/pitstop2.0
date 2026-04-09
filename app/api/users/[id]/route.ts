@@ -1,7 +1,6 @@
 // app/api/users/[id]/route.ts
-import { auth } from "@/lib/auth";
-import { isAllowed } from "@/lib/rbac";
 import { graphFetch } from "@/lib/graph";
+import { assertModuleAccess } from "@/lib/module-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,9 +8,7 @@ export const runtime = "nodejs";
 // GET /api/users/:id
 export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
-        const session = await auth();
-        const upn = (session as any)?.upn as string | undefined;
-        if (!upn || !(await isAllowed(upn))) return new Response("Forbidden", { status: 403 });
+        await assertModuleAccess("users");
 
         const { id } = await ctx.params;                 // ✅ await the params promise
         const userId = decodeURIComponent(id);
@@ -35,9 +32,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
 // PATCH /api/users/:id
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
-        const session = await auth();
-        const upn = (session as any)?.upn as string | undefined;
-        if (!upn || !(await isAllowed(upn))) return new Response("Forbidden", { status: 403 });
+        await assertModuleAccess("users");
 
         const { id } = await ctx.params;                 // ✅ await the params promise
         const userId = decodeURIComponent(id);

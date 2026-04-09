@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import AuthGuard from "@/components/AuthGuard";
+import ModuleGuard from "@/components/ModuleGuard";
 import Papa from "papaparse";
 
 export default function Home() {
@@ -102,7 +102,7 @@ export default function Home() {
   }
 
   return (
-    <AuthGuard>
+    <ModuleGuard moduleKey="bulk">
       <main className="p-6 space-y-6">
         <h1 className="text-2xl font-semibold">M365 Bulk Updater</h1>
 
@@ -187,6 +187,6 @@ export default function Home() {
           </section>
         )}
       </main>
-    </AuthGuard>
+    </ModuleGuard>
   );
 }

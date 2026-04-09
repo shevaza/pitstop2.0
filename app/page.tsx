@@ -1,6 +1,6 @@
 "use client";
 
-import AuthGuard from "@/components/AuthGuard";
+import ModuleGuard from "@/components/ModuleGuard";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
@@ -50,7 +50,7 @@ export default function Home() {
   const deptTop10 = useMemo(() => (data?.departments ?? []).slice(0, 10), [data]);
 
   return (
-    <AuthGuard>
+    <ModuleGuard moduleKey="dashboard">
       <main className="p-6 space-y-6 text-[var(--foreground)]">
 
         {error && (
@@ -150,7 +150,7 @@ export default function Home() {
           </div>
         </section>
       </main>
-    </AuthGuard>
+    </ModuleGuard>
   );
 }
 

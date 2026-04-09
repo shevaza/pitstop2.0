@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth";
-import { isAllowed } from "@/lib/rbac";
+import { assertModuleAccess } from "@/lib/module-auth";
 import { graphFetch } from "@/lib/graph";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +10,11 @@ export async function PATCH(
 ) {
     const { id } = await ctx.params;
 
-    const session = await auth();
-    const upn = (session as any)?.upn as string | undefined;
-    if (!upn || !(await isAllowed(upn))) {
-        return new Response("Forbidden", { status: 403 });
+    try {
+        await assertModuleAccess("users");
+    } catch (error) {
+        if (error instanceof Response) return error;
+        throw error;
     }
 
     const body = await req.json().catch(() => null);

@@ -1,6 +1,5 @@
-import { auth } from "@/lib/auth";
-import { isAllowed } from "@/lib/rbac";
 import { graphFetch } from "@/lib/graph";
+import { assertModuleAccess } from "@/lib/module-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,9 +10,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: Request) {
     try {
-        const session = await auth();
-        const upn = (session as any)?.upn as string | undefined;
-        if (!upn || !(await isAllowed(upn))) return new Response("Forbidden", { status: 403 });
+        await assertModuleAccess("orgchart");
 
         const url = new URL(req.url);
         const topStr = url.searchParams.get("top");        // optional cap for testing

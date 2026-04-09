@@ -1,8 +1,8 @@
 "use client";
 import MultiSelect, { type Option } from "@/components/MultiSelect";
+import ModuleGuard from "@/components/ModuleGuard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import AuthGuard from "@/components/AuthGuard";
 import { useSession } from "next-auth/react";
 import { utils as XLSXUtils, writeFileXLSX } from "xlsx";
 import { toPng } from "html-to-image";
@@ -299,7 +299,7 @@ export default function UsersPage() {
     const pageEnd = sortedItems.length ? Math.min(sortedItems.length, page * pageSize) : 0;
 
     return (
-        <AuthGuard>
+        <ModuleGuard moduleKey="users">
             <main className="p-6 space-y-4 text-[var(--foreground)]">
                 <h1 className="text-2xl font-semibold text-[var(--text)]">Users</h1>
                 <div className="flex flex-wrap items-center gap-2">
@@ -579,6 +579,6 @@ export default function UsersPage() {
                     </table>
                 </div>
             </main>
-        </AuthGuard>
+        </ModuleGuard>
     );
 }

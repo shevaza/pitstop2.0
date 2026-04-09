@@ -1,6 +1,6 @@
 "use client";
 
-import AuthGuard from "@/components/AuthGuard";
+import ModuleGuard from "@/components/ModuleGuard";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -165,7 +165,7 @@ export default function SettingsPage() {
     }, []);
 
     return (
-        <AuthGuard>
+        <ModuleGuard moduleKey="settings">
           <div className="space-y-6 p-4 md:p-6">
             <div className="flex flex-col gap-2">
               <h1 className="text-2xl font-semibold text-[var(--text)]">Settings</h1>
@@ -353,7 +353,7 @@ export default function SettingsPage() {
               <div className="text-sm text-[var(--text)]/70">Loading current settings…</div>
             )}
           </div>
-        </AuthGuard>
+        </ModuleGuard>
     );
 }
 

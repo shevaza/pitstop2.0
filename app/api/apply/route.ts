@@ -1,6 +1,5 @@
-import { auth } from "@/lib/auth";
-import { isAllowed } from "@/lib/rbac";
 import { graphFetch } from "@/lib/graph";
+import { assertModuleAccess } from "@/lib/module-auth";
 import pLimit from "p-limit";
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
@@ -35,9 +34,13 @@ async function assignLicenses(userId: string, addSkuIds: string[]) {
 }
 
 export async function POST(req: Request) {
-    const session = await auth();
-    const actorUpn = (session as any)?.upn as string | undefined;
-    if (!actorUpn || !(await isAllowed(actorUpn))) return new Response("Forbidden", { status: 403 });
+    let actorUpn: string;
+    try {
+        actorUpn = await assertModuleAccess("bulk");
+    } catch (error) {
+        if (error instanceof Response) return error;
+        throw error;
+    }
 
     const body = await req.json();
     const dryRun = !!body?.dryRun;

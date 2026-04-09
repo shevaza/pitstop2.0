@@ -5,6 +5,30 @@ const nextAuthSecret =
     process.env.NEXTAUTH_SECRET ||
     (process.env.NODE_ENV === "development" ? "dev-secret-please-change" : undefined);
 
+const azureAdClientId = process.env.AZURE_AD_CLIENT_ID;
+const azureAdClientSecret = process.env.AZURE_AD_CLIENT_SECRET;
+const azureAdTenantId = process.env.AZURE_AD_TENANT_ID;
+
+function assertGuid(value: string | undefined, name: string) {
+    const guidPattern =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (!value) {
+        throw new Error(`Missing required env var: ${name}`);
+    }
+
+    if (!guidPattern.test(value)) {
+        throw new Error(`${name} must be an Azure GUID value. Received: "${value}"`);
+    }
+}
+
+assertGuid(azureAdClientId, "AZURE_AD_CLIENT_ID");
+assertGuid(azureAdTenantId, "AZURE_AD_TENANT_ID");
+
+if (!azureAdClientSecret) {
+    throw new Error("Missing required env var: AZURE_AD_CLIENT_SECRET");
+}
+
 export const authOptions: NextAuthOptions = {
     secret: nextAuthSecret,
     session: { strategy: "jwt" },
@@ -13,9 +37,9 @@ export const authOptions: NextAuthOptions = {
     },
     providers: [
         AzureAD({
-            clientId: process.env.AZURE_AD_CLIENT_ID!,
-            clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-            tenantId: process.env.AZURE_AD_TENANT_ID!,
+            clientId: azureAdClientId,
+            clientSecret: azureAdClientSecret,
+            tenantId: azureAdTenantId,
             authorization: { params: { scope: "openid profile email offline_access" } },
         }),
     ],

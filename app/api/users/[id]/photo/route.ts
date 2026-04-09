@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth";
-import { isAllowed } from "@/lib/rbac";
+import { assertModuleAccess } from "@/lib/module-auth";
 import { ConfidentialClientApplication } from "@azure/msal-node";
 
 export const runtime = "nodejs";
@@ -26,9 +25,7 @@ export async function GET(
     ctx: { params: Promise<{ id: string }> } // Next.js 16: params is a Promise
 ) {
     try {
-        const session = await auth();
-        const upn = (session as any)?.upn as string | undefined;
-        if (!upn || !(await isAllowed(upn))) return new Response("Forbidden", { status: 403 });
+        await assertModuleAccess("users");
 
         const { id } = await ctx.params;
         const userId = decodeURIComponent(id);

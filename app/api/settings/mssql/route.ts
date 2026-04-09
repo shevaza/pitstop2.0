@@ -1,6 +1,5 @@
-import { auth } from "@/lib/auth";
-import { isAllowed } from "@/lib/rbac";
 import { DEFAULT_ATTENDANCE_QUERY, getPublicSettings, saveMssqlSettings } from "@/lib/mssql-settings";
+import { assertModuleAccess } from "@/lib/module-auth";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -32,17 +31,16 @@ const payloadSchema = z.object({
 });
 
 async function requireAccess() {
-    const session = await auth();
-    const upn = (session as any)?.upn as string | undefined;
-    if (!upn || !(await isAllowed(upn))) {
-        return null;
-    }
-    return upn;
+    return assertModuleAccess("settings");
 }
 
 export async function GET() {
-    const upn = await requireAccess();
-    if (!upn) return new Response("Forbidden", { status: 403 });
+    try {
+        await requireAccess();
+    } catch (error) {
+        if (error instanceof Response) return error;
+        throw error;
+    }
 
     const settings = await getPublicSettings();
     return Response.json({
@@ -52,8 +50,12 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-    const upn = await requireAccess();
-    if (!upn) return new Response("Forbidden", { status: 403 });
+    try {
+        await requireAccess();
+    } catch (error) {
+        if (error instanceof Response) return error;
+        throw error;
+    }
 
     let json: unknown;
     try {

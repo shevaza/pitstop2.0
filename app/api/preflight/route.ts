@@ -1,15 +1,17 @@
-import { auth } from "@/lib/auth";
-import { isAllowed } from "@/lib/rbac";
 import { RowSchema, Row } from "@/lib/schema";
 import { graphFetch } from "@/lib/graph";
+import { assertModuleAccess } from "@/lib/module-auth";
 import { skuPartToId } from "@/lib/resolvers";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-    const session = await auth();
-    const upn = (session as any)?.upn as string | undefined;
-    if (!upn || !(await isAllowed(upn))) return new Response("Forbidden", { status: 403 });
+    try {
+        await assertModuleAccess("bulk");
+    } catch (error) {
+        if (error instanceof Response) return error;
+        throw error;
+    }
 
     const body = await req.json();
     const rows: Row[] = Array.isArray(body?.rows) ? body.rows : [];

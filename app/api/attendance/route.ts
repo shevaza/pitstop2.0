@@ -1,7 +1,6 @@
 import sql from "mssql";
-import { auth } from "@/lib/auth";
-import { isAllowed } from "@/lib/rbac";
 import { DEFAULT_ATTENDANCE_QUERY, loadMssqlSettings } from "@/lib/mssql-settings";
+import { assertModuleAccess } from "@/lib/module-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,10 +20,11 @@ function sanitizeDate(value: string | null) {
 }
 
 export async function GET(request: Request) {
-    const session = await auth();
-    const upn = (session as any)?.upn as string | undefined;
-    if (!upn || !(await isAllowed(upn))) {
-        return new Response("Forbidden", { status: 403 });
+    try {
+        await assertModuleAccess("attendance");
+    } catch (error) {
+        if (error instanceof Response) return error;
+        throw error;
     }
 
     const settings = await loadMssqlSettings();

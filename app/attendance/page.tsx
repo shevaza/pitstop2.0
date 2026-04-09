@@ -1,6 +1,6 @@
 "use client";
 
-import AuthGuard from "@/components/AuthGuard";
+import ModuleGuard from "@/components/ModuleGuard";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -78,7 +78,7 @@ export default function AttendancePage() {
     }, [data, search]);
 
     return (
-        <AuthGuard>
+        <ModuleGuard moduleKey="attendance">
           <div className="space-y-6 p-4 md:p-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
@@ -244,7 +244,7 @@ export default function AttendancePage() {
               </div>
             </div>
           </div>
-        </AuthGuard>
+        </ModuleGuard>
     );
 }
 

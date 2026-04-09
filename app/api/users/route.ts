@@ -1,15 +1,17 @@
-import { auth } from "@/lib/auth";
-import { isAllowed } from "@/lib/rbac";
 import { graphFetch } from "@/lib/graph";
+import { assertModuleAccess } from "@/lib/module-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 // GET /api/users?top=25&skiptoken=...&search=...
 export async function GET(req: Request) {
-    const session = await auth();
-    const upn = (session as any)?.upn as string | undefined;
-    if (!upn || !(await isAllowed(upn))) return new Response("Forbidden", { status: 403 });
+    try {
+        await assertModuleAccess("users");
+    } catch (error) {
+        if (error instanceof Response) return error;
+        throw error;
+    }
 
     const { searchParams } = new URL(req.url);
     const top = Math.min(parseInt(searchParams.get("top") || "25", 10), 500);

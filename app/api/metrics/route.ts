@@ -1,7 +1,6 @@
 import { access } from "node:fs/promises";
-import { auth } from "@/lib/auth";
-import { isAllowed } from "@/lib/rbac";
 import { graphFetch } from "@/lib/graph";
+import { assertModuleAccess } from "@/lib/module-auth";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -24,10 +23,11 @@ export async function GET() {
         cwd: process.cwd(),
         dbExists,
     });
-    const session = await auth();
-    const upn = (session as any)?.upn as string | undefined;
-    if (!upn || !(await isAllowed(upn))) {
-        return new Response("Forbidden", { status: 403 });
+    try {
+        await assertModuleAccess("dashboard");
+    } catch (error) {
+        if (error instanceof Response) return error;
+        throw error;
     }
 
     // --- Pull users (paged), exclude guests for "employees" KPIs ---

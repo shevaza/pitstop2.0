@@ -1,5 +1,6 @@
 "use client";
 
+import ModuleGuard from "@/components/ModuleGuard";
 import dynamic from "next/dynamic";
 
 const OrgChartClient = dynamic(() => import("./OrgChartClient"), {
@@ -8,5 +9,9 @@ const OrgChartClient = dynamic(() => import("./OrgChartClient"), {
 });
 
 export default function OrgChartPage() {
-    return <OrgChartClient />;
+    return (
+        <ModuleGuard moduleKey="orgchart">
+            <OrgChartClient />
+        </ModuleGuard>
+    );
 }

@@ -1,6 +1,5 @@
-import { auth } from "@/lib/auth";
-import { isAllowed } from "@/lib/rbac";
 import { graphFetch } from "@/lib/graph";
+import { assertModuleAccess } from "@/lib/module-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +28,12 @@ function csvEscape(value: string) {
 }
 
 export async function GET() {
-    const session = await auth();
-    const upn = (session as any)?.upn as string | undefined;
-    if (!upn || !(await isAllowed(upn))) return new Response("Forbidden", { status: 403 });
+    try {
+        await assertModuleAccess("bulk");
+    } catch (error) {
+        if (error instanceof Response) return error;
+        throw error;
+    }
 
     const select = [
         "id",
