@@ -1,14 +1,14 @@
-import { auth } from "@/lib/auth";
 import { getModuleAccessMap } from "@/lib/module-access";
 import { appModules } from "@/lib/modules";
+import { getRequestIdentity } from "@/lib/request-auth";
 import { isAllowed } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
-    const session = await auth();
-    const upn = (session as { upn?: string } | null)?.upn;
+    const identity = await getRequestIdentity();
+    const upn = identity?.upn;
 
     if (!upn || !(await isAllowed(upn))) {
         return new Response("Forbidden", { status: 403 });
