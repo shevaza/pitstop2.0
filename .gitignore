@@ -20,6 +20,9 @@
 # production
 /build
 
+# mobile
+/mobile
+
 # misc
 .DS_Store
 *.pem
