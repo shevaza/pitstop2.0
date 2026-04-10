@@ -21,7 +21,7 @@
 /build
 
 # mobile
-/mobile
+/mobile/
 
 # misc
 .DS_Store
