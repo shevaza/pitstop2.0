@@ -67,7 +67,7 @@ MSSQL_ATTENDANCE_QUERY="SELECT TOP ({{limit}}) * FROM Attendance ORDER BY [Date]
 - `AZURE_AD_CLIENT_SECRET`: Azure app registration client secret.
 - `AZURE_AD_TENANT_ID`: Azure tenant ID.
 - `NEXTAUTH_SECRET`: secret used by `next-auth`.
-- `NEXTAUTH_URL`: local app URL, usually `http://localhost:3000`.
+- `NEXTAUTH_URL`: externally reachable app URL. Use `http://localhost:3000` locally and the VPS URL in production, for example `http://74.208.36.23:3000`.
 - `SUPABASE_URL`: base URL for the Supabase project.
 - `SUPABASE_SERVICE_ROLE_KEY`: service role key used by server-side requests.
 
@@ -99,6 +99,7 @@ The app also stores MSSQL connection settings in `.data/mssql-settings.json` whe
 Your Azure AD app registration must be configured for the web app:
 
 - Add a web redirect URI for `http://localhost:3000/api/auth/callback/azure-ad`
+- For a VPS deployment at `http://74.208.36.23:3000`, also add `http://74.208.36.23:3000/api/auth/callback/azure-ad`
 - Make sure the client ID and tenant ID are GUID values
 - Generate a client secret and place it in `AZURE_AD_CLIENT_SECRET`
 - Grant the Microsoft Graph permissions your deployment expects
@@ -116,6 +117,32 @@ pnpm dev
 ```
 
 Open `http://localhost:3000`.
+
+## Run on a VPS
+
+Do not run the public VPS with `pnpm dev`. The dev server serves Turbopack/HMR browser code, including `/_next/webpack-hmr` WebSocket requests, and is meant for local development only.
+
+On the VPS, set the root `.env` to the public URL:
+
+```env
+NEXTAUTH_URL="http://74.208.36.23:3000"
+NEXTAUTH_SECRET="generate-a-long-random-secret"
+```
+
+Then build and run the production server:
+
+```bash
+pnpm install
+pnpm prisma migrate deploy
+pnpm build:vps
+pnpm start
+```
+
+If you are using npm on the VPS, run `npm run build:vps` instead of `npm run build`.
+
+If the VPS still runs out of memory during TypeScript checking, add swap or build on a larger machine and deploy the built output. The `build:vps` script raises Node's heap limit to 4 GB, but the server still needs enough RAM or swap to satisfy that limit.
+
+After changing `NEXTAUTH_URL`, restart the Node process. You can confirm the setting is being used by opening `/api/auth/providers`; the `signinUrl` and `callbackUrl` values should start with `http://74.208.36.23:3000`, not `http://localhost:3000`.
 
 ## Mobile app
 
@@ -135,6 +162,8 @@ pnpm prisma migrate deploy
 ## Troubleshooting
 
 - If sign-in fails immediately, re-check `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`, and the Azure redirect URI.
+- If the VPS shows the login screen but the browser console logs `/_next/webpack-hmr` WebSocket failures, stop `pnpm dev` and run `pnpm build:vps` followed by `pnpm start`.
+- If `/api/auth/providers` returns `localhost` URLs on the VPS, set `NEXTAUTH_URL` to the public VPS URL and restart the app.
 - If module access calls fail, verify `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
 - If Prisma fails to connect, verify `DATABASE_URL`.
 - If attendance data is missing, verify the `MSSQL_*` values or the saved `.data/mssql-settings.json` configuration.
