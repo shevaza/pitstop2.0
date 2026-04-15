@@ -60,6 +60,8 @@ export default function UsersPage() {
     const [items, setItems] = useState<User[]>([]);
     const [nextToken, setNextToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+    const [syncMessage, setSyncMessage] = useState<string | null>(null);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
@@ -167,6 +169,10 @@ export default function UsersPage() {
         () => Math.max(1, Math.ceil(Math.max(sortedItems.length, 1) / pageSize)),
         [sortedItems.length, pageSize]
     );
+    const departmentFilterKey = filters.department.join(",");
+    const officeFilterKey = filters.office.join(",");
+    const sortKey = sort?.key ?? null;
+    const sortDirection = sort?.direction ?? null;
 
     const paginatedItems = useMemo(() => {
         const start = (page - 1) * pageSize;
@@ -179,12 +185,12 @@ export default function UsersPage() {
         filters.name,
         filters.upn,
         filters.title,
-        filters.department.join(","),
-        filters.office.join(","),
+        departmentFilterKey,
+        officeFilterKey,
         filters.status,
         search,
-        sort?.key,
-        sort?.direction,
+        sortKey,
+        sortDirection,
     ]);
 
     useEffect(() => {
@@ -279,6 +285,32 @@ export default function UsersPage() {
         load(false, nextToken);
     }, [status, nextToken, load]);
 
+    const handleSync = useCallback(async () => {
+        if (status !== "authenticated") return;
+
+        setSyncing(true);
+        setSyncMessage(null);
+
+        try {
+            const res = await fetch("/api/users/sync", {
+                method: "POST",
+                cache: "no-store",
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to sync users to Supabase");
+            }
+
+            setSyncMessage(`Synced ${data.upserted ?? 0} users to Supabase at ${new Date(data.syncedAt ?? Date.now()).toLocaleString()}.`);
+            await load(true);
+        } catch (error) {
+            setSyncMessage(error instanceof Error ? error.message : "Failed to sync users to Supabase");
+        } finally {
+            setSyncing(false);
+        }
+    }, [status, load]);
+
     const toggleSort = useCallback((key: SortKey) => {
         setSort((prev) => {
             if (prev?.key === key) {
@@ -317,6 +349,13 @@ export default function UsersPage() {
                     >
                         Search
                     </button>
+                    <button
+                        className="rounded border border-[var(--border)] bg-[color:rgba(14,3,219,0.2)] px-3 py-2 text-[var(--text)] transition-colors hover:bg-[color:rgba(14,3,219,0.32)] disabled:opacity-50"
+                        onClick={handleSync}
+                        disabled={!isReady || syncing}
+                    >
+                        {syncing ? "Syncing..." : "Sync Supabase"}
+                    </button>
 
                     <div className="flex gap-2">
                         <button
@@ -345,6 +384,12 @@ export default function UsersPage() {
                         </button>
                     </div>
                 </div>
+
+                {syncMessage ? (
+                    <div className="rounded-lg border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-sm text-[var(--text)]/80">
+                        {syncMessage}
+                    </div>
+                ) : null}
 
                 <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-xs text-[var(--text)] shadow-[var(--shadow-soft)]">
                     <div className="flex items-center gap-2">

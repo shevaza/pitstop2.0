@@ -51,5 +51,10 @@ export async function supabaseRequest<T>(path: string, options: SupabaseRequestO
         return null as T;
     }
 
-    return (await response.json()) as T;
+    const text = await response.text();
+    if (!text.trim()) {
+        return null as T;
+    }
+
+    return JSON.parse(text) as T;
 }
