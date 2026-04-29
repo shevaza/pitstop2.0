@@ -28,6 +28,8 @@ create table if not exists public.assets (
     asset_group text,
     asset_type text not null,
     status text not null default 'active',
+    quantity integer not null default 1,
+    location text,
     serial_number text,
     manufacturer text,
     model text,
@@ -40,6 +42,8 @@ create table if not exists public.assets (
 );
 
 alter table if exists public.assets add column if not exists asset_group text;
+alter table if exists public.assets add column if not exists quantity integer not null default 1;
+alter table if exists public.assets add column if not exists location text;
 
 create or replace function public.set_updated_at()
 returns trigger

@@ -29,6 +29,8 @@ type Asset = {
     asset_group?: string | null;
     asset_type: string;
     status: string;
+    quantity?: number | null;
+    location?: string | null;
     serial_number?: string | null;
     manufacturer?: string | null;
     model?: string | null;
@@ -59,6 +61,8 @@ type FormState = {
     assetGroup: string;
     assetType: string;
     status: string;
+    quantity: string;
+    location: string;
     serialNumber: string;
     manufacturer: string;
     model: string;
@@ -74,6 +78,8 @@ function toFormState(asset: Asset, allowedGroups: string[]): FormState {
         assetGroup: asset.asset_group ?? allowedGroups[0] ?? assetGroups[0],
         assetType: asset.asset_type,
         status: asset.status,
+        quantity: String(asset.quantity ?? 1),
+        location: asset.location ?? "",
         serialNumber: asset.serial_number ?? "",
         manufacturer: asset.manufacturer ?? "",
         model: asset.model ?? "",
@@ -346,6 +352,25 @@ export default function AssetEditPage() {
                         </div>
 
                         <div className="grid gap-4 md:grid-cols-3">
+                            <label className="block">
+                                <div className="mb-1 text-xs text-[var(--text)]/70">Qty</div>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={form.quantity}
+                                    onChange={(event) => setForm((current) => current ? { ...current, quantity: event.target.value } : current)}
+                                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--glass)] p-3 text-[var(--text)] focus:border-[var(--text)]/60 focus:outline-none"
+                                    required
+                                />
+                            </label>
+                            <label className="block">
+                                <div className="mb-1 text-xs text-[var(--text)]/70">Location</div>
+                                <input
+                                    value={form.location}
+                                    onChange={(event) => setForm((current) => current ? { ...current, location: event.target.value } : current)}
+                                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--glass)] p-3 text-[var(--text)] focus:border-[var(--text)]/60 focus:outline-none"
+                                />
+                            </label>
                             <label className="block">
                                 <div className="mb-1 text-xs text-[var(--text)]/70">Serial Number</div>
                                 <input

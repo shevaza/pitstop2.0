@@ -29,6 +29,8 @@ type Asset = {
     asset_group?: string | null;
     asset_type: string;
     status: string;
+    quantity?: number | null;
+    location?: string | null;
     serial_number?: string | null;
     manufacturer?: string | null;
     model?: string | null;
@@ -52,6 +54,8 @@ type FormState = {
     assetGroup: string;
     assetType: string;
     status: string;
+    quantity: string;
+    location: string;
     serialNumber: string;
     manufacturer: string;
     model: string;
@@ -64,6 +68,8 @@ const initialForm: FormState = {
     assetGroup: assetGroups[0],
     assetType: "",
     status: "active",
+    quantity: "1",
+    location: "",
     serialNumber: "",
     manufacturer: "",
     model: "",
@@ -213,6 +219,7 @@ export default function AssetsPage() {
                 asset.asset_tag,
                 asset.asset_group,
                 asset.asset_type,
+                asset.location,
                 asset.serial_number,
                 asset.manufacturer,
                 asset.model,
@@ -534,6 +541,8 @@ export default function AssetsPage() {
                                             <div className="font-medium">{asset.name}</div>
                                             <div className="mt-1 text-xs text-[var(--text)]/65">
                                                 {asset.asset_tag}
+                                                {asset.quantity ? ` | Qty ${asset.quantity}` : ""}
+                                                {asset.location ? ` | ${asset.location}` : ""}
                                                 {asset.serial_number ? ` | ${asset.serial_number}` : ""}
                                                 {asset.manufacturer ? ` | ${asset.manufacturer}` : ""}
                                                 {asset.model ? ` | ${asset.model}` : ""}
@@ -696,6 +705,28 @@ export default function AssetsPage() {
                                 </div>
 
                                 <div className="grid gap-4 md:grid-cols-3">
+                                    <label className="block">
+                                        <div className="mb-1 text-xs text-[var(--text)]/70">Qty</div>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={form.quantity}
+                                            onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))}
+                                            className="w-full rounded-xl border border-[var(--border)] bg-[var(--glass)] p-3 text-[var(--text)] focus:border-[var(--text)]/60 focus:outline-none"
+                                            required
+                                        />
+                                    </label>
+
+                                    <label className="block">
+                                        <div className="mb-1 text-xs text-[var(--text)]/70">Location</div>
+                                        <input
+                                            value={form.location}
+                                            onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))}
+                                            className="w-full rounded-xl border border-[var(--border)] bg-[var(--glass)] p-3 text-[var(--text)] focus:border-[var(--text)]/60 focus:outline-none"
+                                            placeholder="Storage room, office, shelf..."
+                                        />
+                                    </label>
+
                                     <label className="block">
                                         <div className="mb-1 text-xs text-[var(--text)]/70">Serial Number</div>
                                         <input

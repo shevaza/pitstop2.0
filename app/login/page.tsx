@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+
 
 export default function LoginPage() {
   const { status } = useSession();
@@ -21,7 +23,8 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-[calc(100vh-6rem)] items-center justify-center p-6 text-[var(--foreground)]">
       <div className="w-full max-w-md space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-8 text-center shadow-[var(--shadow-soft)] backdrop-blur-2xl">
-        <div>
+        <div className="flex flex-col items-center">
+          <Image src="/icon.png" alt="ITCAN 365" width={190} height={0}/>
           <h1 className="text-2xl font-semibold text-[var(--text)]">
             Sign in to Pitstop 2.0
           </h1>

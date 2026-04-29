@@ -30,6 +30,8 @@ export type AssetRecord = {
     asset_group?: string | null;
     asset_type: string;
     status: string;
+    quantity?: number | null;
+    location?: string | null;
     serial_number?: string | null;
     manufacturer?: string | null;
     model?: string | null;
@@ -138,6 +140,8 @@ export async function createAsset(input: {
     assetGroup?: string | null;
     assetType: string;
     status: string;
+    quantity?: number | null;
+    location?: string | null;
     serialNumber?: string | null;
     manufacturer?: string | null;
     model?: string | null;
@@ -161,6 +165,8 @@ export async function createAsset(input: {
             asset_group: input.assetGroup ?? null,
             asset_type: input.assetType,
             status: input.status,
+            quantity: input.quantity ?? 1,
+            location: input.location ?? null,
             serial_number: input.serialNumber ?? null,
             manufacturer: input.manufacturer ?? null,
             model: input.model ?? null,
@@ -180,6 +186,8 @@ export async function updateAsset(id: string, input: {
     assetGroup?: string | null;
     assetType: string;
     status: string;
+    quantity?: number | null;
+    location?: string | null;
     serialNumber?: string | null;
     manufacturer?: string | null;
     model?: string | null;
@@ -204,6 +212,8 @@ export async function updateAsset(id: string, input: {
             asset_group: input.assetGroup ?? null,
             asset_type: input.assetType,
             status: input.status,
+            quantity: input.quantity ?? 1,
+            location: input.location ?? null,
             serial_number: input.serialNumber ?? null,
             manufacturer: input.manufacturer ?? null,
             model: input.model ?? null,
