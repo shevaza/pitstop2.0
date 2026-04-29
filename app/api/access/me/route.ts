@@ -1,4 +1,4 @@
-import { getModuleAccessMap } from "@/lib/module-access";
+import { getModuleAccessDetails } from "@/lib/module-access";
 import { appModules } from "@/lib/modules";
 import { getRequestIdentity } from "@/lib/request-auth";
 import { isAllowed } from "@/lib/rbac";
@@ -14,9 +14,10 @@ export async function GET() {
         return new Response("Forbidden", { status: 403 });
     }
 
-    const access = await getModuleAccessMap(upn);
+    const { access, assetGroups } = await getModuleAccessDetails(upn);
     return Response.json({
         access,
+        assetGroups,
         modules: appModules,
     });
 }

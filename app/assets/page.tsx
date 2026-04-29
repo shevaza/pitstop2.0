@@ -1,6 +1,7 @@
 "use client";
 
 import ModuleGuard from "@/components/ModuleGuard";
+import { assetGroups } from "@/lib/asset-groups";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -60,7 +61,7 @@ type FormState = {
 const initialForm: FormState = {
     assetTag: "",
     name: "",
-    assetGroup: "",
+    assetGroup: assetGroups[0],
     assetType: "",
     status: "active",
     serialNumber: "",
@@ -111,6 +112,7 @@ export default function AssetsPage() {
     const router = useRouter();
     const { status } = useSession();
     const [assets, setAssets] = useState<Asset[]>([]);
+    const [allowedAssetGroups, setAllowedAssetGroups] = useState<string[]>([...assetGroups]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
@@ -136,6 +138,7 @@ export default function AssetsPage() {
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
             setAssets(Array.isArray(data.items) ? data.items : []);
+            setAllowedAssetGroups(Array.isArray(data.assetGroups) && data.assetGroups.length ? data.assetGroups : [...assetGroups]);
         } catch (error) {
             setMessage(error instanceof Error ? error.message : "Failed to load assets");
         } finally {
@@ -191,14 +194,7 @@ export default function AssetsPage() {
         };
     }, [status, isCreateOpen, userSearch, selectedUser]);
 
-    const groupOptions = useMemo(() => {
-        const values = new Set<string>();
-        for (const asset of assets) {
-            const group = asset.asset_group?.trim();
-            if (group) values.add(group);
-        }
-        return Array.from(values).sort((a, b) => a.localeCompare(b));
-    }, [assets]);
+    const groupOptions = allowedAssetGroups;
 
     const typeOptions = useMemo(() => {
         const values = new Set<string>();
@@ -328,6 +324,7 @@ export default function AssetsPage() {
                                 className="rounded border border-[var(--border)] bg-[color:rgba(14,3,219,0.22)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[color:rgba(14,3,219,0.35)]"
                                 onClick={() => {
                                     setMessage(null);
+                                    setForm({ ...initialForm, assetGroup: allowedAssetGroups[0] ?? assetGroups[0] });
                                     setIsCreateOpen(true);
                                 }}
                             >
@@ -657,12 +654,18 @@ export default function AssetsPage() {
                                 <div className="grid gap-4 md:grid-cols-3">
                                     <label className="block">
                                         <div className="mb-1 text-xs text-[var(--text)]/70">Group</div>
-                                        <input
+                                        <select
                                             value={form.assetGroup}
                                             onChange={(event) => setForm((current) => ({ ...current, assetGroup: event.target.value }))}
                                             className="w-full rounded-xl border border-[var(--border)] bg-[var(--glass)] p-3 text-[var(--text)] focus:border-[var(--text)]/60 focus:outline-none"
-                                            placeholder="IT, Workspace, Mobile..."
-                                        />
+                                            required
+                                        >
+                                            {groupOptions.map((group) => (
+                                                <option key={group} value={group}>
+                                                    {group}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </label>
 
                                     <label className="block">

@@ -1,6 +1,7 @@
-import { getModuleAccessMap, saveModuleAccess } from "@/lib/module-access";
+import { getModuleAccessDetails, saveModuleAccess } from "@/lib/module-access";
 import { assertModuleAccess } from "@/lib/module-auth";
 import { appModules, getDefaultModuleAccess, isAppModuleKey, type AppModuleKey } from "@/lib/modules";
+import { assetGroups, normalizeAssetGroups } from "@/lib/asset-groups";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,7 @@ const payloadSchema = z.object({
     userPrincipalName: z.string().email(),
     displayName: z.string().trim().optional().nullable(),
     access: z.record(z.string(), z.boolean()),
+    assetGroups: z.array(z.enum(assetGroups)).optional(),
 });
 
 async function assertAuthorized() {
@@ -25,12 +27,13 @@ export async function GET(req: Request) {
         if (!userPrincipalName) {
             return Response.json({
                 access: getDefaultModuleAccess(),
+                assetGroups,
                 modules: appModules,
             });
         }
 
-        const access = await getModuleAccessMap(userPrincipalName);
-        return Response.json({ access, modules: appModules });
+        const details = await getModuleAccessDetails(userPrincipalName);
+        return Response.json({ ...details, modules: appModules });
     } catch (error) {
         if (error instanceof Response) return error;
         console.error("GET /api/user-access failed", error);
@@ -57,14 +60,21 @@ export async function POST(req: Request) {
             return new Response("You cannot remove your own User Access permission.", { status: 400 });
         }
 
-        const access = await saveModuleAccess({
+        const nextAssetGroups = normalizeAssetGroups(parsed.assetGroups);
+        if (nextAccess.assets && !nextAssetGroups.length) {
+            return new Response("Select at least one asset group for Assets Management access.", { status: 400 });
+        }
+
+        await saveModuleAccess({
             userPrincipalName: parsed.userPrincipalName,
             displayName: parsed.displayName,
             updatedByUpn: actorUpn,
             access: nextAccess,
+            assetGroups: nextAssetGroups,
         });
 
-        return Response.json({ access, modules: appModules });
+        const details = await getModuleAccessDetails(parsed.userPrincipalName);
+        return Response.json({ ...details, modules: appModules });
     } catch (error) {
         if (error instanceof Response) return error;
         if (error instanceof z.ZodError) {

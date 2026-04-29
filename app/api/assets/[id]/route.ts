@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { assertModuleAccess } from "@/lib/module-auth";
 import { deleteAsset, getAssetById, updateAsset, type DirectoryUser } from "@/lib/assets";
+import { assetGroups, canAccessAssetGroup } from "@/lib/asset-groups";
+import { getModuleAccessDetails } from "@/lib/module-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,7 +12,7 @@ const nullishString = z.string().nullable().optional();
 const assetPayloadSchema = z.object({
     assetTag: z.string().trim().min(1),
     name: z.string().trim().min(1),
-    assetGroup: nullishString,
+    assetGroup: z.enum(assetGroups),
     assetType: z.string().trim().min(1),
     status: z.string().trim().min(1).default("active"),
     serialNumber: nullishString,
@@ -62,7 +64,8 @@ function normalizeAssignedUser(
 
 export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
-        await assertAuthorized();
+        const actorUpn = await assertAuthorized();
+        const { assetGroups: allowedAssetGroups } = await getModuleAccessDetails(actorUpn);
         const { id } = await ctx.params;
         const asset = await getAssetById(decodeURIComponent(id));
 
@@ -70,7 +73,11 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
             return new Response("Asset not found", { status: 404 });
         }
 
-        return Response.json({ asset });
+        if (!canAccessAssetGroup(asset.asset_group, allowedAssetGroups)) {
+            return new Response("Asset not found", { status: 404 });
+        }
+
+        return Response.json({ asset, assetGroups: allowedAssetGroups });
     } catch (error) {
         if (error instanceof Response) return error;
         console.error("GET /api/assets/[id] failed", error);
@@ -81,8 +88,21 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
         const actorUpn = await assertAuthorized();
+        const { assetGroups: allowedAssetGroups } = await getModuleAccessDetails(actorUpn);
         const { id } = await ctx.params;
         const parsed = assetPayloadSchema.parse(await req.json());
+        const existing = await getAssetById(decodeURIComponent(id));
+
+        if (!existing) {
+            return new Response("Asset not found", { status: 404 });
+        }
+
+        if (
+            !canAccessAssetGroup(existing.asset_group, allowedAssetGroups) ||
+            !canAccessAssetGroup(parsed.assetGroup, allowedAssetGroups)
+        ) {
+            return new Response("You do not have access to this asset group.", { status: 403 });
+        }
 
         const asset = await updateAsset(decodeURIComponent(id), {
             assetTag: parsed.assetTag,
@@ -98,10 +118,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
             actorUpn,
         });
 
-        if (!asset) {
-            return new Response("Asset not found", { status: 404 });
-        }
-
         return Response.json({ asset });
     } catch (error) {
         if (error instanceof Response) return error;
@@ -115,8 +131,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
 export async function DELETE(_: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
-        await assertAuthorized();
+        const actorUpn = await assertAuthorized();
+        const { assetGroups: allowedAssetGroups } = await getModuleAccessDetails(actorUpn);
         const { id } = await ctx.params;
+        const asset = await getAssetById(decodeURIComponent(id));
+        if (!asset) {
+            return new Response("Asset not found", { status: 404 });
+        }
+        if (!canAccessAssetGroup(asset.asset_group, allowedAssetGroups)) {
+            return new Response("Asset not found", { status: 404 });
+        }
         await deleteAsset(decodeURIComponent(id));
         return new Response(null, { status: 204 });
     } catch (error) {

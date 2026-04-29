@@ -1,5 +1,6 @@
 import { graphFetch } from "@/lib/graph";
 import { supabaseRequest } from "@/lib/supabase-admin";
+import { canAccessAssetGroup, type AssetGroup } from "@/lib/asset-groups";
 
 export type AssetUserSnapshot = {
     id?: string;
@@ -98,13 +99,16 @@ export async function upsertAssetUserSnapshot(user: Partial<DirectoryUser>) {
     return saved;
 }
 
-export async function listAssets() {
-    return supabaseRequest<AssetRecord[]>("assets", {
+export async function listAssets(allowedGroups?: readonly AssetGroup[]) {
+    const items = await supabaseRequest<AssetRecord[]>("assets", {
         query: {
             select: "*,assigned_user:asset_users!assets_assigned_user_id_fkey(*)",
             order: "created_at.desc",
         },
     });
+
+    if (!allowedGroups) return items;
+    return items.filter((asset) => canAccessAssetGroup(asset.asset_group, allowedGroups));
 }
 
 export async function getAssetById(id: string) {

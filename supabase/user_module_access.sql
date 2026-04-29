@@ -11,6 +11,9 @@ create table if not exists public.user_module_access (
     unique (user_principal_name, module_key)
 );
 
+alter table if exists public.user_module_access
+add column if not exists asset_groups text[];
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql

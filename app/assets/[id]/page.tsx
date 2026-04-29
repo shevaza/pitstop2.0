@@ -1,6 +1,7 @@
 "use client";
 
 import ModuleGuard from "@/components/ModuleGuard";
+import { assetGroups } from "@/lib/asset-groups";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -66,11 +67,11 @@ type FormState = {
 
 const STATUSES = ["active", "in-stock", "repair", "retired"];
 
-function toFormState(asset: Asset): FormState {
+function toFormState(asset: Asset, allowedGroups: string[]): FormState {
     return {
         assetTag: asset.asset_tag,
         name: asset.name,
-        assetGroup: asset.asset_group ?? "",
+        assetGroup: asset.asset_group ?? allowedGroups[0] ?? assetGroups[0],
         assetType: asset.asset_type,
         status: asset.status,
         serialNumber: asset.serial_number ?? "",
@@ -104,6 +105,7 @@ export default function AssetEditPage() {
     const router = useRouter();
     const { status } = useSession();
     const [asset, setAsset] = useState<Asset | null>(null);
+    const [allowedAssetGroups, setAllowedAssetGroups] = useState<string[]>([...assetGroups]);
     const [form, setForm] = useState<FormState | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -124,8 +126,10 @@ export default function AssetEditPage() {
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
             const nextAsset = data.asset as Asset;
+            const nextAllowedGroups = Array.isArray(data.assetGroups) && data.assetGroups.length ? data.assetGroups : [...assetGroups];
             setAsset(nextAsset);
-            setForm(toFormState(nextAsset));
+            setAllowedAssetGroups(nextAllowedGroups);
+            setForm(toFormState(nextAsset, nextAllowedGroups));
             const nextUser = toSelectedUser(nextAsset);
             setSelectedUser(nextUser);
             setUserSearch(nextUser?.displayName ?? nextUser?.userPrincipalName ?? "");
@@ -303,11 +307,18 @@ export default function AssetEditPage() {
                         <div className="grid gap-4 md:grid-cols-3">
                             <label className="block">
                                 <div className="mb-1 text-xs text-[var(--text)]/70">Group</div>
-                                <input
+                                <select
                                     value={form.assetGroup}
                                     onChange={(event) => setForm((current) => current ? { ...current, assetGroup: event.target.value } : current)}
                                     className="w-full rounded-xl border border-[var(--border)] bg-[var(--glass)] p-3 text-[var(--text)] focus:border-[var(--text)]/60 focus:outline-none"
-                                />
+                                    required
+                                >
+                                    {allowedAssetGroups.map((group) => (
+                                        <option key={group} value={group}>
+                                            {group}
+                                        </option>
+                                    ))}
+                                </select>
                             </label>
                             <label className="block">
                                 <div className="mb-1 text-xs text-[var(--text)]/70">Type</div>

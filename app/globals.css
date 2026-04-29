@@ -65,3 +65,8 @@ button {
 button:active {
   transform: translateY(1px);
 }
+
+option {
+  background-color: var(--background);
+  color: var(--text);
+}

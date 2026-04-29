@@ -1,6 +1,7 @@
 "use client";
 
 import ModuleGuard from "@/components/ModuleGuard";
+import { assetGroups } from "@/lib/asset-groups";
 import { appModules, getDefaultModuleAccess, type AppModuleKey } from "@/lib/modules";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -20,6 +21,7 @@ export default function UserAccessPage() {
     const [users, setUsers] = useState<DirectoryUser[]>([]);
     const [selectedUser, setSelectedUser] = useState<DirectoryUser | null>(null);
     const [access, setAccess] = useState<Record<AppModuleKey, boolean>>(getDefaultModuleAccess);
+    const [assetGroupAccess, setAssetGroupAccess] = useState<string[]>([...assetGroups]);
     const [loadingAccess, setLoadingAccess] = useState(false);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
@@ -78,8 +80,10 @@ export default function UserAccessPage() {
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
             setAccess(data.access ?? getDefaultModuleAccess());
+            setAssetGroupAccess(Array.isArray(data.assetGroups) && data.assetGroups.length ? data.assetGroups : [...assetGroups]);
         } catch (err) {
             setAccess(getDefaultModuleAccess());
+            setAssetGroupAccess([...assetGroups]);
             setError(err instanceof Error ? err.message : "Failed to load user access");
         } finally {
             setLoadingAccess(false);
@@ -106,23 +110,26 @@ export default function UserAccessPage() {
                     userPrincipalName: selectedUser.userPrincipalName,
                     displayName: selectedUser.displayName,
                     access,
+                    assetGroups: assetGroupAccess,
                 }),
             });
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
             setAccess(data.access ?? access);
+            setAssetGroupAccess(Array.isArray(data.assetGroups) && data.assetGroups.length ? data.assetGroups : assetGroupAccess);
             setMessage("User access saved");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to save user access");
         } finally {
             setSaving(false);
         }
-    }, [access, selectedUser]);
+    }, [access, assetGroupAccess, selectedUser]);
 
     const enabledCount = useMemo(
         () => Object.values(access).filter(Boolean).length,
         [access],
     );
+    const assetGroupSelectionInvalid = access.assets && assetGroupAccess.length === 0;
 
     return (
         <ModuleGuard moduleKey="user-access">
@@ -197,11 +204,12 @@ export default function UserAccessPage() {
                                 <button
                                     type="button"
                                     className="rounded border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--glass-strong)] disabled:opacity-60"
-                                    onClick={() =>
+                                    onClick={() => {
                                         setAccess(
                                             Object.fromEntries(appModules.map((module) => [module.key, true])) as Record<AppModuleKey, boolean>,
-                                        )
-                                    }
+                                        );
+                                        setAssetGroupAccess([...assetGroups]);
+                                    }}
                                     disabled={!selectedUser || loadingAccess}
                                 >
                                     Allow all
@@ -209,11 +217,12 @@ export default function UserAccessPage() {
                                 <button
                                     type="button"
                                     className="rounded border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--glass-strong)] disabled:opacity-60"
-                                    onClick={() =>
+                                    onClick={() => {
                                         setAccess(
                                             Object.fromEntries(appModules.map((module) => [module.key, false])) as Record<AppModuleKey, boolean>,
-                                        )
-                                    }
+                                        );
+                                        setAssetGroupAccess([]);
+                                    }}
                                     disabled={!selectedUser || loadingAccess}
                                 >
                                     Clear all
@@ -229,27 +238,61 @@ export default function UserAccessPage() {
 
                         <div className="mt-4 space-y-3">
                             {appModules.map((module) => (
-                                <label
+                                <div
                                     key={module.key}
-                                    className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--glass-strong)] px-4 py-3"
+                                    className="rounded-xl border border-[var(--border)] bg-[var(--glass-strong)] px-4 py-3"
                                 >
-                                    <div>
-                                        <div className="font-medium text-[var(--text)]">{module.label}</div>
-                                        <div className="text-xs text-[var(--text)]/60">{module.href}</div>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div>
+                                            <div className="font-medium text-[var(--text)]">{module.label}</div>
+                                            <div className="text-xs text-[var(--text)]/60">{module.href}</div>
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={access[module.key]}
+                                            onChange={(event) => {
+                                                const checked = event.target.checked;
+                                                setAccess((current) => ({
+                                                    ...current,
+                                                    [module.key]: checked,
+                                                }));
+                                                if (module.key === "assets") {
+                                                    setAssetGroupAccess(checked ? [...assetGroups] : []);
+                                                }
+                                            }}
+                                            disabled={!selectedUser || loadingAccess}
+                                            className="h-5 w-5 rounded border-[var(--border)] bg-[var(--glass)]"
+                                        />
                                     </div>
-                                    <input
-                                        type="checkbox"
-                                        checked={access[module.key]}
-                                        onChange={(event) =>
-                                            setAccess((current) => ({
-                                                ...current,
-                                                [module.key]: event.target.checked,
-                                            }))
-                                        }
-                                        disabled={!selectedUser || loadingAccess}
-                                        className="h-5 w-5 rounded border-[var(--border)] bg-[var(--glass)]"
-                                    />
-                                </label>
+                                    {module.key === "assets" && access.assets && (
+                                        <div className="mt-3 border-t border-[var(--border)]/70 pt-3">
+                                            <div className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-[var(--text)]/50">
+                                                Asset Groups
+                                            </div>
+                                            <div className="flex flex-wrap gap-3">
+                                                {assetGroups.map((group) => (
+                                                    <label key={group} className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-sm text-[var(--text)]">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={assetGroupAccess.includes(group)}
+                                                            onChange={(event) => {
+                                                                setAssetGroupAccess((current) => {
+                                                                    if (event.target.checked) {
+                                                                        return current.includes(group) ? current : [...current, group];
+                                                                    }
+                                                                    return current.filter((item) => item !== group);
+                                                                });
+                                                            }}
+                                                            disabled={!selectedUser || loadingAccess}
+                                                            className="h-4 w-4 rounded border-[var(--border)] bg-[var(--glass)]"
+                                                        />
+                                                        {group}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             ))}
                         </div>
 
@@ -258,13 +301,17 @@ export default function UserAccessPage() {
                                 type="button"
                                 className="rounded-lg border border-[var(--border)] bg-[var(--glass)] px-4 py-2 text-sm font-semibold text-[var(--text)] shadow-[var(--shadow-soft)] hover:bg-[var(--glass-strong)] disabled:cursor-not-allowed disabled:opacity-60"
                                 onClick={() => void handleSave()}
-                                disabled={!selectedUser || saving || loadingAccess}
+                                disabled={!selectedUser || saving || loadingAccess || assetGroupSelectionInvalid}
                             >
                                 {saving ? "Saving..." : "Save access"}
                             </button>
-                            {(loadingAccess || (!selectedUser && status === "authenticated")) && (
+                            {(assetGroupSelectionInvalid || loadingAccess || (!selectedUser && status === "authenticated")) && (
                                 <span className="text-xs text-[var(--text)]/60">
-                                    {loadingAccess ? "Loading saved access..." : "Choose a user to begin."}
+                                    {assetGroupSelectionInvalid
+                                        ? "Select at least one asset group."
+                                        : loadingAccess
+                                            ? "Loading saved access..."
+                                            : "Choose a user to begin."}
                                 </span>
                             )}
                         </div>

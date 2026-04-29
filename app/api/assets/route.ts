@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { createAsset, listAssets, type DirectoryUser } from "@/lib/assets";
 import { assertModuleAccess } from "@/lib/module-auth";
+import { assetGroups, canAccessAssetGroup } from "@/lib/asset-groups";
+import { getModuleAccessDetails } from "@/lib/module-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,7 +12,7 @@ const nullishString = z.string().nullable().optional();
 const assetPayloadSchema = z.object({
     assetTag: z.string().trim().min(1),
     name: z.string().trim().min(1),
-    assetGroup: nullishString,
+    assetGroup: z.enum(assetGroups),
     assetType: z.string().trim().min(1),
     status: z.string().trim().min(1).default("active"),
     serialNumber: nullishString,
@@ -62,9 +64,10 @@ function normalizeAssignedUser(
 
 export async function GET() {
     try {
-        await assertAuthorized();
-        const items = await listAssets();
-        return Response.json({ items });
+        const actorUpn = await assertAuthorized();
+        const { assetGroups: allowedAssetGroups } = await getModuleAccessDetails(actorUpn);
+        const items = await listAssets(allowedAssetGroups);
+        return Response.json({ items, assetGroups: allowedAssetGroups });
     } catch (error) {
         if (error instanceof Response) return error;
         console.error("GET /api/assets failed", error);
@@ -75,7 +78,12 @@ export async function GET() {
 export async function POST(req: Request) {
     try {
         const actorUpn = await assertAuthorized();
+        const { assetGroups: allowedAssetGroups } = await getModuleAccessDetails(actorUpn);
         const parsed = assetPayloadSchema.parse(await req.json());
+
+        if (!canAccessAssetGroup(parsed.assetGroup, allowedAssetGroups)) {
+            return new Response("You do not have access to this asset group.", { status: 403 });
+        }
 
         const asset = await createAsset({
             assetTag: parsed.assetTag,
