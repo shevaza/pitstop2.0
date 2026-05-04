@@ -10,6 +10,7 @@ export default function HeaderNav() {
   const [isOpen, setIsOpen] = useState(false);
   const [failedPhotoSrc, setFailedPhotoSrc] = useState<string | null>(null);
   const [hrOpen, setHrOpen] = useState(true);
+  const [ticketsOpen, setTicketsOpen] = useState(true);
   const [moduleAccess, setModuleAccess] = useState<Record<AppModuleKey, boolean>>(getDefaultModuleAccess);
 
   useEffect(() => {
@@ -219,6 +220,42 @@ export default function HeaderNav() {
                   Assets Management
                 </Link>
               </div>
+              )}
+
+              {(moduleAccess["it-tickets"] || moduleAccess["it-tickets-admin"]) && (
+                <div className="border-t border-[var(--border)] pt-3 mt-3">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)]"
+                    onClick={() => setTicketsOpen((prev) => !prev)}
+                    aria-expanded={ticketsOpen}
+                  >
+                    <span>IT Tickets</span>
+                    <span className="text-xs text-[var(--text)]/65">{ticketsOpen ? "v" : ">"}</span>
+                  </button>
+                  {ticketsOpen && (
+                    <div className="mt-1 space-y-1">
+                      {moduleAccess["it-tickets"] && (
+                        <Link
+                          href="/it-tickets"
+                          className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/90 transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)]"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          My Tickets
+                        </Link>
+                      )}
+                      {moduleAccess["it-tickets-admin"] && (
+                        <Link
+                          href="/it-tickets/admin"
+                          className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/80 transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)]"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Admin Queue
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
 
               {navGroups.slice(2).map((group, index) => (

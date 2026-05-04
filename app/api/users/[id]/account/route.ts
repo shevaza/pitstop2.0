@@ -11,7 +11,7 @@ export async function PATCH(
     const { id } = await ctx.params;
 
     try {
-        await assertModuleAccess("users");
+        await assertModuleAccess("users", "modify");
     } catch (error) {
         if (error instanceof Response) return error;
         throw error;

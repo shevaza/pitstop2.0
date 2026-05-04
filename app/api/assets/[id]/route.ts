@@ -89,7 +89,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
-        const actorUpn = await assertAuthorized();
+        const actorUpn = await assertModuleAccess("assets", "modify");
         const { assetGroups: allowedAssetGroups } = await getModuleAccessDetails(actorUpn);
         const { id } = await ctx.params;
         const parsed = assetPayloadSchema.parse(await req.json());
@@ -135,7 +135,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
 export async function DELETE(_: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
-        const actorUpn = await assertAuthorized();
+        const actorUpn = await assertModuleAccess("assets", "modify");
         const { assetGroups: allowedAssetGroups } = await getModuleAccessDetails(actorUpn);
         const { id } = await ctx.params;
         const asset = await getAssetById(decodeURIComponent(id));

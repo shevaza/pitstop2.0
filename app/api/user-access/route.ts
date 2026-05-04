@@ -1,6 +1,14 @@
 import { getModuleAccessDetails, saveModuleAccess } from "@/lib/module-access";
 import { assertModuleAccess } from "@/lib/module-auth";
-import { appModules, getDefaultModuleAccess, isAppModuleKey, type AppModuleKey } from "@/lib/modules";
+import {
+    appModules,
+    getDefaultModuleAccess,
+    getDefaultModuleAccessLevels,
+    isAppModuleKey,
+    normalizeModuleAccessLevel,
+    type AppModuleKey,
+    type ModuleAccessLevel,
+} from "@/lib/modules";
 import { assetGroups, normalizeAssetGroups } from "@/lib/asset-groups";
 import { z } from "zod";
 
@@ -10,12 +18,13 @@ export const runtime = "nodejs";
 const payloadSchema = z.object({
     userPrincipalName: z.string().email(),
     displayName: z.string().trim().optional().nullable(),
-    access: z.record(z.string(), z.boolean()),
+    access: z.record(z.string(), z.boolean()).optional(),
+    accessLevel: z.record(z.string(), z.enum(["none", "read", "modify"])).optional(),
     assetGroups: z.array(z.enum(assetGroups)).optional(),
 });
 
-async function assertAuthorized() {
-    return assertModuleAccess("user-access");
+async function assertAuthorized(requiredLevel: "read" | "modify" = "read") {
+    return assertModuleAccess("user-access", requiredLevel);
 }
 
 export async function GET(req: Request) {
@@ -27,6 +36,7 @@ export async function GET(req: Request) {
         if (!userPrincipalName) {
             return Response.json({
                 access: getDefaultModuleAccess(),
+                accessLevel: getDefaultModuleAccessLevels(),
                 assetGroups,
                 modules: appModules,
             });
@@ -43,21 +53,29 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
-        const actorUpn = await assertAuthorized();
+        const actorUpn = await assertAuthorized("modify");
         const parsed = payloadSchema.parse(await req.json());
 
+        const nextAccessLevel = Object.fromEntries(
+            appModules.map((module) => {
+                const levelFromPayload = parsed.accessLevel?.[module.key];
+                const fallbackLevel = parsed.access?.[module.key] ? "modify" : "none";
+                return [
+                    module.key,
+                    isAppModuleKey(module.key) ? normalizeModuleAccessLevel(levelFromPayload ?? fallbackLevel) : "none",
+                ];
+            }),
+        ) as Record<AppModuleKey, ModuleAccessLevel>;
+
         const nextAccess = Object.fromEntries(
-            appModules.map((module) => [
-                module.key,
-                isAppModuleKey(module.key) ? Boolean(parsed.access[module.key]) : false,
-            ]),
+            appModules.map((module) => [module.key, nextAccessLevel[module.key] !== "none"]),
         ) as Record<AppModuleKey, boolean>;
 
         if (
             parsed.userPrincipalName.trim().toLowerCase() === actorUpn.trim().toLowerCase() &&
-            !nextAccess["user-access"]
+            nextAccessLevel["user-access"] !== "modify"
         ) {
-            return new Response("You cannot remove your own User Access permission.", { status: 400 });
+            return new Response("You cannot remove your own User Access modify permission.", { status: 400 });
         }
 
         const nextAssetGroups = normalizeAssetGroups(parsed.assetGroups);
@@ -69,7 +87,7 @@ export async function POST(req: Request) {
             userPrincipalName: parsed.userPrincipalName,
             displayName: parsed.displayName,
             updatedByUpn: actorUpn,
-            access: nextAccess,
+            accessLevel: nextAccessLevel,
             assetGroups: nextAssetGroups,
         });
 

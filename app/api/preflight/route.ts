@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
     try {
-        await assertModuleAccess("bulk");
+        await assertModuleAccess("bulk", "modify");
     } catch (error) {
         if (error instanceof Response) return error;
         throw error;

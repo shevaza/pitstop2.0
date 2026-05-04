@@ -36,7 +36,7 @@ async function assignLicenses(userId: string, addSkuIds: string[]) {
 export async function POST(req: Request) {
     let actorUpn: string;
     try {
-        actorUpn = await assertModuleAccess("bulk");
+        actorUpn = await assertModuleAccess("bulk", "modify");
     } catch (error) {
         if (error instanceof Response) return error;
         throw error;

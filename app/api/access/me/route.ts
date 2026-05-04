@@ -14,9 +14,10 @@ export async function GET() {
         return new Response("Forbidden", { status: 403 });
     }
 
-    const { access, assetGroups } = await getModuleAccessDetails(upn);
+    const { access, accessLevel, assetGroups } = await getModuleAccessDetails(upn);
     return Response.json({
         access,
+        accessLevel,
         assetGroups,
         modules: appModules,
     });

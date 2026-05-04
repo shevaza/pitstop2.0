@@ -79,7 +79,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
-        const actorUpn = await assertAuthorized();
+        const actorUpn = await assertModuleAccess("assets", "modify");
         const { assetGroups: allowedAssetGroups } = await getModuleAccessDetails(actorUpn);
         const parsed = assetPayloadSchema.parse(await req.json());
 

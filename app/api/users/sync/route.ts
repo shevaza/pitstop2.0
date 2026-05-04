@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 export async function POST() {
     try {
-        await assertModuleAccess("users");
+        await assertModuleAccess("users", "modify");
         const result = await syncUsersFromAzureToSupabase();
         return Response.json(result);
     } catch (error) {

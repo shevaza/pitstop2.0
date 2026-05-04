@@ -14,6 +14,22 @@ create table if not exists public.user_module_access (
 alter table if exists public.user_module_access
 add column if not exists asset_groups text[];
 
+alter table if exists public.user_module_access
+add column if not exists access_level text not null default 'none';
+
+update public.user_module_access
+set access_level = case when allowed then 'modify' else 'none' end
+where access_level is null
+or access_level not in ('none', 'read', 'modify')
+or (allowed = true and access_level = 'none');
+
+alter table if exists public.user_module_access
+drop constraint if exists user_module_access_access_level_check;
+
+alter table if exists public.user_module_access
+add constraint user_module_access_access_level_check
+check (access_level in ('none', 'read', 'modify'));
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql

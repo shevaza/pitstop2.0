@@ -2,9 +2,15 @@
 
 import ModuleGuard from "@/components/ModuleGuard";
 import { assetGroups } from "@/lib/asset-groups";
-import { appModules, getDefaultModuleAccess, type AppModuleKey } from "@/lib/modules";
+import {
+    appModules,
+    getDefaultModuleAccess,
+    getDefaultModuleAccessLevels,
+    type AppModuleKey,
+    type ModuleAccessLevel,
+} from "@/lib/modules";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 
 type DirectoryUser = {
     id: string;
@@ -14,6 +20,21 @@ type DirectoryUser = {
     department?: string;
 };
 
+function accessToLevels(access: Record<AppModuleKey, boolean>): Record<AppModuleKey, ModuleAccessLevel> {
+    return Object.fromEntries(
+        appModules.map((module) => [module.key, access[module.key] ? "modify" : "none"]),
+    ) as Record<AppModuleKey, ModuleAccessLevel>;
+}
+
+function setAllAccess(
+    level: ModuleAccessLevel,
+    setAccess: Dispatch<SetStateAction<Record<AppModuleKey, boolean>>>,
+    setAccessLevel: Dispatch<SetStateAction<Record<AppModuleKey, ModuleAccessLevel>>>,
+) {
+    setAccess(Object.fromEntries(appModules.map((module) => [module.key, level !== "none"])) as Record<AppModuleKey, boolean>);
+    setAccessLevel(Object.fromEntries(appModules.map((module) => [module.key, level])) as Record<AppModuleKey, ModuleAccessLevel>);
+}
+
 export default function UserAccessPage() {
     const { status } = useSession();
     const [search, setSearch] = useState("");
@@ -21,6 +42,7 @@ export default function UserAccessPage() {
     const [users, setUsers] = useState<DirectoryUser[]>([]);
     const [selectedUser, setSelectedUser] = useState<DirectoryUser | null>(null);
     const [access, setAccess] = useState<Record<AppModuleKey, boolean>>(getDefaultModuleAccess);
+    const [accessLevel, setAccessLevel] = useState<Record<AppModuleKey, ModuleAccessLevel>>(getDefaultModuleAccessLevels);
     const [assetGroupAccess, setAssetGroupAccess] = useState<string[]>([...assetGroups]);
     const [loadingAccess, setLoadingAccess] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -79,10 +101,13 @@ export default function UserAccessPage() {
             );
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
-            setAccess(data.access ?? getDefaultModuleAccess());
+            const nextAccess = data.access ?? getDefaultModuleAccess();
+            setAccess(nextAccess);
+            setAccessLevel(data.accessLevel ?? accessToLevels(nextAccess));
             setAssetGroupAccess(Array.isArray(data.assetGroups) && data.assetGroups.length ? data.assetGroups : [...assetGroups]);
         } catch (err) {
             setAccess(getDefaultModuleAccess());
+            setAccessLevel(getDefaultModuleAccessLevels());
             setAssetGroupAccess([...assetGroups]);
             setError(err instanceof Error ? err.message : "Failed to load user access");
         } finally {
@@ -110,12 +135,15 @@ export default function UserAccessPage() {
                     userPrincipalName: selectedUser.userPrincipalName,
                     displayName: selectedUser.displayName,
                     access,
+                    accessLevel,
                     assetGroups: assetGroupAccess,
                 }),
             });
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
-            setAccess(data.access ?? access);
+            const nextAccess = data.access ?? access;
+            setAccess(nextAccess);
+            setAccessLevel(data.accessLevel ?? accessToLevels(nextAccess));
             setAssetGroupAccess(Array.isArray(data.assetGroups) && data.assetGroups.length ? data.assetGroups : assetGroupAccess);
             setMessage("User access saved");
         } catch (err) {
@@ -123,7 +151,7 @@ export default function UserAccessPage() {
         } finally {
             setSaving(false);
         }
-    }, [access, assetGroupAccess, selectedUser]);
+    }, [access, accessLevel, assetGroupAccess, selectedUser]);
 
     const enabledCount = useMemo(
         () => Object.values(access).filter(Boolean).length,
@@ -205,22 +233,29 @@ export default function UserAccessPage() {
                                     type="button"
                                     className="rounded border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--glass-strong)] disabled:opacity-60"
                                     onClick={() => {
-                                        setAccess(
-                                            Object.fromEntries(appModules.map((module) => [module.key, true])) as Record<AppModuleKey, boolean>,
-                                        );
+                                        setAllAccess("read", setAccess, setAccessLevel);
                                         setAssetGroupAccess([...assetGroups]);
                                     }}
                                     disabled={!selectedUser || loadingAccess}
                                 >
-                                    Allow all
+                                    Read all
                                 </button>
                                 <button
                                     type="button"
                                     className="rounded border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--glass-strong)] disabled:opacity-60"
                                     onClick={() => {
-                                        setAccess(
-                                            Object.fromEntries(appModules.map((module) => [module.key, false])) as Record<AppModuleKey, boolean>,
-                                        );
+                                        setAllAccess("modify", setAccess, setAccessLevel);
+                                        setAssetGroupAccess([...assetGroups]);
+                                    }}
+                                    disabled={!selectedUser || loadingAccess}
+                                >
+                                    Modify all
+                                </button>
+                                <button
+                                    type="button"
+                                    className="rounded border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--glass-strong)] disabled:opacity-60"
+                                    onClick={() => {
+                                        setAllAccess("none", setAccess, setAccessLevel);
                                         setAssetGroupAccess([]);
                                     }}
                                     disabled={!selectedUser || loadingAccess}
@@ -247,22 +282,29 @@ export default function UserAccessPage() {
                                             <div className="font-medium text-[var(--text)]">{module.label}</div>
                                             <div className="text-xs text-[var(--text)]/60">{module.href}</div>
                                         </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={access[module.key]}
+                                        <select
+                                            value={accessLevel[module.key]}
                                             onChange={(event) => {
-                                                const checked = event.target.checked;
+                                                const level = event.target.value as ModuleAccessLevel;
                                                 setAccess((current) => ({
                                                     ...current,
-                                                    [module.key]: checked,
+                                                    [module.key]: level !== "none",
+                                                }));
+                                                setAccessLevel((current) => ({
+                                                    ...current,
+                                                    [module.key]: level,
                                                 }));
                                                 if (module.key === "assets") {
-                                                    setAssetGroupAccess(checked ? [...assetGroups] : []);
+                                                    setAssetGroupAccess(level !== "none" ? [...assetGroups] : []);
                                                 }
                                             }}
                                             disabled={!selectedUser || loadingAccess}
-                                            className="h-5 w-5 rounded border-[var(--border)] bg-[var(--glass)]"
-                                        />
+                                            className="rounded-lg border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-sm text-[var(--text)] outline-none"
+                                        >
+                                            <option value="none">No access</option>
+                                            <option value="read">Read</option>
+                                            <option value="modify">Modify</option>
+                                        </select>
                                     </div>
                                     {module.key === "assets" && access.assets && (
                                         <div className="mt-3 border-t border-[var(--border)]/70 pt-3">

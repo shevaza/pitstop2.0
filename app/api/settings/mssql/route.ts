@@ -30,8 +30,8 @@ const payloadSchema = z.object({
     }
 });
 
-async function requireAccess() {
-    return assertModuleAccess("settings");
+async function requireAccess(requiredLevel: "read" | "modify" = "read") {
+    return assertModuleAccess("settings", requiredLevel);
 }
 
 export async function GET() {
@@ -51,7 +51,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
-        await requireAccess();
+        await requireAccess("modify");
     } catch (error) {
         if (error instanceof Response) return error;
         throw error;

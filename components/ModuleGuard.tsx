@@ -1,16 +1,17 @@
 "use client";
 
 import AuthGuard from "@/components/AuthGuard";
-import type { AppModuleKey } from "@/lib/modules";
+import { moduleAccessLevelAllows, type AppModuleKey, type ModuleAccessLevel } from "@/lib/modules";
 import { useSession } from "next-auth/react";
 import { useEffect, useState, type ReactNode } from "react";
 
 type ModuleGuardProps = {
     moduleKey: AppModuleKey;
+    requiredLevel?: Exclude<ModuleAccessLevel, "none">;
     children: ReactNode;
 };
 
-export default function ModuleGuard({ moduleKey, children }: ModuleGuardProps) {
+export default function ModuleGuard({ moduleKey, requiredLevel = "read", children }: ModuleGuardProps) {
     const { status } = useSession();
     const [loading, setLoading] = useState(true);
     const [allowed, setAllowed] = useState(false);
@@ -30,7 +31,8 @@ export default function ModuleGuard({ moduleKey, children }: ModuleGuardProps) {
                 }
                 const data = await res.json();
                 if (active) {
-                    setAllowed(Boolean(data.access?.[moduleKey]));
+                    const level = data.accessLevel?.[moduleKey] ?? (data.access?.[moduleKey] ? "modify" : "none");
+                    setAllowed(moduleAccessLevelAllows(level, requiredLevel));
                 }
             } catch {
                 if (active) setAllowed(false);
@@ -44,7 +46,7 @@ export default function ModuleGuard({ moduleKey, children }: ModuleGuardProps) {
         return () => {
             active = false;
         };
-    }, [moduleKey, status]);
+    }, [moduleKey, requiredLevel, status]);
 
     return (
         <AuthGuard>

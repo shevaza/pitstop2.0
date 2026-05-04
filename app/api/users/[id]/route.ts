@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 // GET /api/users/:id
 export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
-        await assertModuleAccess("users");
+        await assertModuleAccess("users", "modify");
 
         const { id } = await ctx.params;                 // ✅ await the params promise
         const userId = decodeURIComponent(id);
@@ -24,6 +24,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
 
         return Response.json({ user, manager });
     } catch (e: any) {
+        if (e instanceof Response) return e;
         console.error("GET /api/users/[id] failed", e);
         return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500 });
     }
@@ -32,7 +33,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
 // PATCH /api/users/:id
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
-        await assertModuleAccess("users");
+        await assertModuleAccess("users", "modify");
 
         const { id } = await ctx.params;                 // ✅ await the params promise
         const userId = decodeURIComponent(id);
@@ -65,6 +66,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
         return new Response(null, { status: 204 });
     } catch (e: any) {
+        if (e instanceof Response) return e;
         console.error("PATCH /api/users/[id] failed", e);
         return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500 });
     }

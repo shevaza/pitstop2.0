@@ -62,6 +62,7 @@ export default function UsersPage() {
     const [loading, setLoading] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [syncMessage, setSyncMessage] = useState<string | null>(null);
+    const [canModifyUsers, setCanModifyUsers] = useState(false);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
@@ -75,6 +76,30 @@ export default function UsersPage() {
         status: "",
     });
     const tableRef = useRef<HTMLTableElement | null>(null);
+
+    useEffect(() => {
+        if (status !== "authenticated") return;
+
+        let active = true;
+        const loadAccess = async () => {
+            try {
+                const res = await fetch("/api/access/me", { cache: "no-store" });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (active) {
+                    setCanModifyUsers(data.accessLevel?.users === "modify");
+                }
+            } catch {
+                if (active) setCanModifyUsers(false);
+            }
+        };
+
+        void loadAccess();
+
+        return () => {
+            active = false;
+        };
+    }, [status]);
 
     const query = useMemo(() => new URLSearchParams({
         top: "500",
@@ -352,7 +377,8 @@ export default function UsersPage() {
                     <button
                         className="rounded border border-[var(--border)] bg-[color:rgba(14,3,219,0.2)] px-3 py-2 text-[var(--text)] transition-colors hover:bg-[color:rgba(14,3,219,0.32)] disabled:opacity-50"
                         onClick={handleSync}
-                        disabled={!isReady || syncing}
+                        disabled={!isReady || syncing || !canModifyUsers}
+                        title={canModifyUsers ? undefined : "Modify access is required"}
                     >
                         {syncing ? "Syncing..." : "Sync Supabase"}
                     </button>
@@ -594,9 +620,13 @@ export default function UsersPage() {
                             {paginatedItems.map((u) => (
                                 <tr key={u.id} className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(14,3,219,0.12)]">
                                     <td className="p-2">
-                                        <Link href={`/users/${encodeURIComponent(u.id)}`} className="text-[var(--text)] hover:text-[var(--primary)] hover:underline">
-                                            {u.displayName || `${u.givenName ?? ""} ${u.surname ?? ""}`.trim() || "(no name)"}
-                                        </Link>
+                                        {canModifyUsers ? (
+                                            <Link href={`/users/${encodeURIComponent(u.id)}`} className="text-[var(--text)] hover:text-[var(--primary)] hover:underline">
+                                                {u.displayName || `${u.givenName ?? ""} ${u.surname ?? ""}`.trim() || "(no name)"}
+                                            </Link>
+                                        ) : (
+                                            u.displayName || `${u.givenName ?? ""} ${u.surname ?? ""}`.trim() || "(no name)"
+                                        )}
                                     </td>
                                     <td className="p-2">{u.userPrincipalName}</td>
                                     <td className="p-2">{u.jobTitle ?? "-"}</td>

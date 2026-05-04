@@ -223,14 +223,14 @@ export default function UserDetailPage() {
 
     if (!user) {
         return (
-            <ModuleGuard moduleKey="users">
+            <ModuleGuard moduleKey="users" requiredLevel="modify">
                 <main className="p-6 text-[var(--foreground)]">Loading...</main>
             </ModuleGuard>
         );
     }
 
     return (
-        <ModuleGuard moduleKey="users">
+        <ModuleGuard moduleKey="users" requiredLevel="modify">
             <main className="p-6 space-y-4 text-[var(--foreground)]">
                 <div className="flex justify-center">
                     <div className="flex flex-col gap-6 sm:w-2xl rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-6 shadow-[var(--shadow-soft)] backdrop-blur-2xl">
