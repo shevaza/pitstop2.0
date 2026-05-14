@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { assertModuleAccess } from "@/lib/module-auth";
-import { deleteAsset, getAssetById, updateAsset, type DirectoryUser } from "@/lib/assets";
+import { deleteAsset, getAssetById, listAssetActivityLogs, updateAsset, type DirectoryUser } from "@/lib/assets";
 import { assetGroups, canAccessAssetGroup } from "@/lib/asset-groups";
 import { getModuleAccessDetails } from "@/lib/module-access";
 
@@ -79,7 +79,9 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
             return new Response("Asset not found", { status: 404 });
         }
 
-        return Response.json({ asset, assetGroups: allowedAssetGroups });
+        const activityLogs = await listAssetActivityLogs(asset.id);
+
+        return Response.json({ asset, activityLogs, assetGroups: allowedAssetGroups });
     } catch (error) {
         if (error instanceof Response) return error;
         console.error("GET /api/assets/[id] failed", error);

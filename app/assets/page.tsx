@@ -5,6 +5,7 @@ import { assetGroups } from "@/lib/asset-groups";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { utils as XLSXUtils, writeFileXLSX } from "xlsx";
 
 type AssetUser = {
     id: string;
@@ -112,6 +113,12 @@ function statusTone(status: string) {
         default:
             return "bg-[color:rgba(255,255,255,0.12)]";
     }
+}
+
+function formatDateForExport(value: string | null | undefined) {
+    if (!value) return "";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
 }
 
 export default function AssetsPage() {
@@ -278,6 +285,55 @@ export default function AssetsPage() {
 
     const hasFilters = searchTerm.trim() || groupFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || assignmentFilter !== "all";
 
+    const handleExportExcel = useCallback(() => {
+        if (!filteredAssets.length) return;
+
+        const header = [
+            "Asset Tag",
+            "Asset Name",
+            "Group",
+            "Type",
+            "Status",
+            "Quantity",
+            "Location",
+            "Serial Number",
+            "Manufacturer",
+            "Model",
+            "Assigned User",
+            "Assigned User UPN",
+            "Assigned User Department",
+            "Assigned User Job Title",
+            "Created At",
+            "User Snapshot Synced At",
+            "Notes",
+        ];
+        const rows = filteredAssets.map((asset) => [
+            asset.asset_tag,
+            asset.name,
+            displayValue(asset.asset_group, ""),
+            asset.asset_type,
+            asset.status,
+            asset.quantity ?? "",
+            asset.location ?? "",
+            asset.serial_number ?? "",
+            asset.manufacturer ?? "",
+            asset.model ?? "",
+            asset.assigned_user?.display_name ?? "",
+            asset.assigned_user?.user_principal_name ?? "",
+            asset.assigned_user?.department ?? "",
+            asset.assigned_user?.job_title ?? "",
+            formatDateForExport(asset.created_at),
+            formatDateForExport(asset.assigned_user?.last_synced_at),
+            asset.notes ?? "",
+        ]);
+
+        const worksheet = XLSXUtils.aoa_to_sheet([header, ...rows]);
+        worksheet["!cols"] = header.map((label) => ({ wch: Math.max(14, label.length + 2) }));
+        const workbook = XLSXUtils.book_new();
+        XLSXUtils.book_append_sheet(workbook, worksheet, "Assets");
+        writeFileXLSX(workbook, "assets.xlsx");
+    }, [filteredAssets]);
+
     const closeCreateModal = useCallback(() => {
         if (saving) return;
         setIsCreateOpen(false);
@@ -428,8 +484,17 @@ export default function AssetsPage() {
                                 Search by asset, assignee, serial, model, or group and narrow the list with quick filters.
                             </p>
                         </div>
-                        <div className="text-sm text-[var(--text)]/65">
-                            {filteredAssets.length} shown of {assets.length}
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="text-sm text-[var(--text)]/65">
+                                {filteredAssets.length} shown of {assets.length}
+                            </div>
+                            <button
+                                className="rounded border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-sm text-[var(--text)] transition-colors hover:bg-[var(--glass-strong)] disabled:opacity-50"
+                                onClick={handleExportExcel}
+                                disabled={!filteredAssets.length}
+                            >
+                                Export Excel
+                            </button>
                         </div>
                     </div>
 

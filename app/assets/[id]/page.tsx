@@ -55,6 +55,22 @@ type Asset = {
     } | null;
 };
 
+type AssetActivityChange = {
+    field: string;
+    label: string;
+    from: string | number | null;
+    to: string | number | null;
+};
+
+type AssetActivityLog = {
+    id: string;
+    action: "created" | "updated";
+    actor_upn: string;
+    summary: string;
+    changes: AssetActivityChange[];
+    created_at: string;
+};
+
 type FormState = {
     assetTag: string;
     name: string;
@@ -106,11 +122,17 @@ function toSelectedUser(asset: Asset): AssetUser | null {
     };
 }
 
+function formatActivityValue(value: string | number | null) {
+    if (value === null || value === "") return "Empty";
+    return String(value);
+}
+
 export default function AssetEditPage() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
     const { status } = useSession();
     const [asset, setAsset] = useState<Asset | null>(null);
+    const [activityLogs, setActivityLogs] = useState<AssetActivityLog[]>([]);
     const [allowedAssetGroups, setAllowedAssetGroups] = useState<string[]>([...assetGroups]);
     const [form, setForm] = useState<FormState | null>(null);
     const [loading, setLoading] = useState(true);
@@ -134,6 +156,7 @@ export default function AssetEditPage() {
             const nextAsset = data.asset as Asset;
             const nextAllowedGroups = Array.isArray(data.assetGroups) && data.assetGroups.length ? data.assetGroups : [...assetGroups];
             setAsset(nextAsset);
+            setActivityLogs(Array.isArray(data.activityLogs) ? data.activityLogs : []);
             setAllowedAssetGroups(nextAllowedGroups);
             setForm(toFormState(nextAsset, nextAllowedGroups));
             const nextUser = toSelectedUser(nextAsset);
@@ -141,6 +164,7 @@ export default function AssetEditPage() {
             setUserSearch(nextUser?.displayName ?? nextUser?.userPrincipalName ?? "");
             setUserResults(nextUser ? [nextUser] : []);
         } catch (error) {
+            setActivityLogs([]);
             setMessage(error instanceof Error ? error.message : "Failed to load asset");
         } finally {
             setLoading(false);
@@ -476,6 +500,60 @@ export default function AssetEditPage() {
                         </div>
                     </form>
                 </div>
+
+                <section className="mx-auto max-w-4xl rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-6 shadow-[var(--shadow-soft)] backdrop-blur-2xl">
+                    <div className="flex flex-wrap items-end justify-between gap-3">
+                        <div>
+                            <h2 className="text-xl font-semibold text-[var(--text)]">Activity Log</h2>
+                            <p className="mt-1 text-sm text-[var(--text)]/65">
+                                Owner, status, location, and asset detail changes are recorded here.
+                            </p>
+                        </div>
+                        <div className="text-sm text-[var(--text)]/60">{activityLogs.length} entries</div>
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+                        {activityLogs.map((log) => (
+                            <article key={log.id} className="rounded-xl border border-[var(--border)]/80 bg-[var(--glass-strong)] p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <div className="text-sm font-semibold text-[var(--text)]">{log.summary}</div>
+                                        <div className="mt-1 text-xs text-[var(--text)]/60">
+                                            {log.actor_upn} | {new Date(log.created_at).toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <span className="rounded-full bg-[color:rgba(14,3,219,0.2)] px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text)]">
+                                        {log.action}
+                                    </span>
+                                </div>
+
+                                <div className="mt-3 space-y-2">
+                                    {log.changes.map((change) => (
+                                        <div key={`${log.id}-${change.field}`} className="grid gap-2 rounded-lg border border-[var(--border)]/60 bg-[color:rgba(255,255,255,0.04)] px-3 py-2 text-sm text-[var(--text)]/80 md:grid-cols-[10rem_minmax(0,1fr)]">
+                                            <div className="font-medium text-[var(--text)]">{change.label}</div>
+                                            <div className="min-w-0">
+                                                <span className="break-words text-[var(--text)]/60">{formatActivityValue(change.from)}</span>
+                                                <span className="px-2 text-[var(--text)]/45">to</span>
+                                                <span className="break-words text-[var(--text)]">{formatActivityValue(change.to)}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {!log.changes.length && (
+                                        <div className="rounded-lg border border-dashed border-[var(--border)]/60 px-3 py-2 text-sm text-[var(--text)]/60">
+                                            No tracked field values changed.
+                                        </div>
+                                    )}
+                                </div>
+                            </article>
+                        ))}
+
+                        {!activityLogs.length && (
+                            <div className="rounded-xl border border-dashed border-[var(--border)]/70 px-4 py-6 text-center text-sm text-[var(--text)]/60">
+                                No activity has been recorded for this asset yet.
+                            </div>
+                        )}
+                    </div>
+                </section>
             </main>
         </ModuleGuard>
     );

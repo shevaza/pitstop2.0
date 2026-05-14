@@ -44,6 +44,23 @@ export type AssetRecord = {
     assigned_user?: AssetUserSnapshot | null;
 };
 
+export type AssetActivityChange = {
+    field: string;
+    label: string;
+    from: string | number | null;
+    to: string | number | null;
+};
+
+export type AssetActivityLog = {
+    id: string;
+    asset_id: string;
+    action: "created" | "updated";
+    actor_upn: string;
+    summary: string;
+    changes: AssetActivityChange[];
+    created_at: string;
+};
+
 export type DirectoryUser = {
     id: string;
     userPrincipalName: string;
@@ -125,6 +142,16 @@ export async function getAssetById(id: string) {
     return items[0] ?? null;
 }
 
+export async function listAssetActivityLogs(assetId: string) {
+    return supabaseRequest<AssetActivityLog[]>("asset_activity_logs", {
+        query: {
+            select: "*",
+            asset_id: `eq.${assetId}`,
+            order: "created_at.desc",
+        },
+    });
+}
+
 async function resolveAssignedUserId(assignedUser?: Partial<DirectoryUser> | null) {
     if (!assignedUser?.userPrincipalName) {
         return null;
@@ -132,6 +159,87 @@ async function resolveAssignedUserId(assignedUser?: Partial<DirectoryUser> | nul
 
     const savedUser = await upsertAssetUserSnapshot(assignedUser);
     return savedUser.id ?? null;
+}
+
+function userLabel(user?: AssetUserSnapshot | null) {
+    if (!user) return null;
+    return user.display_name || user.user_principal_name || null;
+}
+
+function normalizeLogValue(value: unknown) {
+    if (value === undefined || value === "") return null;
+    if (typeof value === "string" || typeof value === "number") return value;
+    if (value === null) return null;
+    return String(value);
+}
+
+function buildAssetChanges(before: AssetRecord | null, after: AssetRecord) {
+    const fields: Array<{
+        field: keyof AssetRecord | "assigned_owner";
+        label: string;
+        before: string | number | null | undefined;
+        after: string | number | null | undefined;
+    }> = [
+        { field: "asset_tag", label: "Asset Tag", before: before?.asset_tag, after: after.asset_tag },
+        { field: "name", label: "Name", before: before?.name, after: after.name },
+        { field: "asset_group", label: "Group", before: before?.asset_group, after: after.asset_group },
+        { field: "asset_type", label: "Type", before: before?.asset_type, after: after.asset_type },
+        { field: "status", label: "Status", before: before?.status, after: after.status },
+        { field: "quantity", label: "Quantity", before: before?.quantity, after: after.quantity },
+        { field: "location", label: "Location", before: before?.location, after: after.location },
+        { field: "serial_number", label: "Serial Number", before: before?.serial_number, after: after.serial_number },
+        { field: "manufacturer", label: "Manufacturer", before: before?.manufacturer, after: after.manufacturer },
+        { field: "model", label: "Model", before: before?.model, after: after.model },
+        { field: "assigned_owner", label: "Owner", before: userLabel(before?.assigned_user), after: userLabel(after.assigned_user) },
+        { field: "notes", label: "Notes", before: before?.notes, after: after.notes },
+    ];
+
+    return fields.reduce<AssetActivityChange[]>((changes, field) => {
+        const from = normalizeLogValue(field.before);
+        const to = normalizeLogValue(field.after);
+        if (from !== to) {
+            changes.push({
+                field: String(field.field),
+                label: field.label,
+                from,
+                to,
+            });
+        }
+        return changes;
+    }, []);
+}
+
+async function createAssetActivityLog(input: {
+    asset: AssetRecord;
+    before: AssetRecord | null;
+    action: AssetActivityLog["action"];
+    actorUpn: string;
+}) {
+    const changes = buildAssetChanges(input.before, input.asset);
+    const summary = input.action === "created"
+        ? "Asset created"
+        : changes.length
+            ? `${changes.length} field${changes.length === 1 ? "" : "s"} updated`
+            : "Asset saved without tracked changes";
+
+    const [log] = await supabaseRequest<AssetActivityLog[]>("asset_activity_logs", {
+        method: "POST",
+        query: {
+            select: "*",
+        },
+        headers: {
+            Prefer: "return=representation",
+        },
+        body: {
+            asset_id: input.asset.id,
+            action: input.action,
+            actor_upn: input.actorUpn,
+            summary,
+            changes,
+        },
+    });
+
+    return log;
 }
 
 export async function createAsset(input: {
@@ -177,6 +285,13 @@ export async function createAsset(input: {
         },
     });
 
+    await createAssetActivityLog({
+        asset: created,
+        before: null,
+        action: "created",
+        actorUpn: input.actorUpn,
+    });
+
     return created;
 }
 
@@ -195,6 +310,7 @@ export async function updateAsset(id: string, input: {
     assignedUser?: Partial<DirectoryUser> | null;
     actorUpn: string;
 }) {
+    const existing = await getAssetById(id);
     const assignedUserId = await resolveAssignedUserId(input.assignedUser);
 
     const [updated] = await supabaseRequest<AssetRecord[]>("assets", {
@@ -222,6 +338,15 @@ export async function updateAsset(id: string, input: {
             updated_by_upn: input.actorUpn,
         },
     });
+
+    if (updated) {
+        await createAssetActivityLog({
+            asset: updated,
+            before: existing,
+            action: "updated",
+            actorUpn: input.actorUpn,
+        });
+    }
 
     return updated ?? null;
 }

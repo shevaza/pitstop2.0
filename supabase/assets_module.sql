@@ -41,9 +41,22 @@ create table if not exists public.assets (
     updated_at timestamptz not null default now()
 );
 
+create table if not exists public.asset_activity_logs (
+    id uuid primary key default gen_random_uuid(),
+    asset_id uuid not null references public.assets(id) on delete cascade,
+    action text not null,
+    actor_upn text not null,
+    summary text not null,
+    changes jsonb not null default '[]'::jsonb,
+    created_at timestamptz not null default now()
+);
+
 alter table if exists public.assets add column if not exists asset_group text;
 alter table if exists public.assets add column if not exists quantity integer not null default 1;
 alter table if exists public.assets add column if not exists location text;
+
+create index if not exists asset_activity_logs_asset_created_idx
+on public.asset_activity_logs(asset_id, created_at desc);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -69,6 +82,7 @@ execute function public.set_updated_at();
 
 alter table public.asset_users enable row level security;
 alter table public.assets enable row level security;
+alter table public.asset_activity_logs enable row level security;
 
 drop policy if exists "service role manages asset users" on public.asset_users;
 create policy "service role manages asset users"
@@ -80,6 +94,13 @@ with check (auth.role() = 'service_role');
 drop policy if exists "service role manages assets" on public.assets;
 create policy "service role manages assets"
 on public.assets
+for all
+using (auth.role() = 'service_role')
+with check (auth.role() = 'service_role');
+
+drop policy if exists "service role manages asset activity logs" on public.asset_activity_logs;
+create policy "service role manages asset activity logs"
+on public.asset_activity_logs
 for all
 using (auth.role() = 'service_role')
 with check (auth.role() = 'service_role');
