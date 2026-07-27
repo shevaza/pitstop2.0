@@ -2,14 +2,48 @@
 
 :root {
   --primary: #0e03db;
-  --background: #03030a;
-  --foreground: #e8ebff;
+  --background: #010105;
+  --foreground: #f4f5ff;
   --text: #ffffff;
   --glass: rgba(255, 255, 255, 0.07);
   --glass-strong: rgba(255, 255, 255, 0.1);
   --border: rgba(255, 255, 255, 0.16);
   --shadow-soft: 0 12px 50px rgba(0, 0, 0, 0.45);
   --glow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 48px rgba(14, 3, 219, 0.35);
+  --page-background-image: radial-gradient(120% 120% at 15% 20%, rgba(14, 3, 219, 0.22), transparent 46%),
+    radial-gradient(120% 100% at 85% 0%, rgba(14, 3, 219, 0.14), transparent 42%),
+    linear-gradient(145deg, #03030a, #070714 40%, #03030a 100%);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --background: #f6f7fb;
+  --foreground: #111827;
+  --text: #172033;
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-strong: rgba(255, 255, 255, 0.9);
+  --border: rgba(17, 24, 39, 0.14);
+  --shadow-soft: 0 12px 38px rgba(17, 24, 39, 0.12);
+  --glow: 0 0 0 1px rgba(17, 24, 39, 0.06), 0 12px 38px rgba(14, 3, 219, 0.16);
+  --page-background-image: radial-gradient(120% 120% at 15% 20%, rgba(14, 3, 219, 0.1), transparent 48%),
+    radial-gradient(100% 90% at 85% 0%, rgba(80, 120, 255, 0.12), transparent 44%),
+    linear-gradient(145deg, #f7f8fd, #eef1fb 45%, #ffffff 100%);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --background: #010105;
+  --foreground: #f4f5ff;
+  --text: #ffffff;
+  --glass: rgba(255, 255, 255, 0.07);
+  --glass-strong: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.16);
+  --shadow-soft: 0 12px 50px rgba(0, 0, 0, 0.45);
+  --glow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 48px rgba(14, 3, 219, 0.35);
+  --page-background-image: radial-gradient(120% 120% at 15% 20%, rgba(14, 3, 219, 0.22), transparent 46%),
+    radial-gradient(120% 100% at 85% 0%, rgba(14, 3, 219, 0.14), transparent 42%),
+    linear-gradient(145deg, #03030a, #070714 40%, #03030a 100%);
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -19,20 +53,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #010105;
-    --foreground: #f4f5ff;
-    --text: #ffffff;
-  }
-}
-
 body {
   min-height: 100vh;
   background-color: var(--background);
-  background-image: radial-gradient(120% 120% at 15% 20%, rgba(14, 3, 219, 0.22), transparent 46%),
-    radial-gradient(120% 100% at 85% 0%, rgba(14, 3, 219, 0.14), transparent 42%),
-    linear-gradient(145deg, #03030a, #070714 40%, #03030a 100%);
+  background-image: var(--page-background-image);
   color: var(--foreground);
   font-family: var(--font-geist-sans), "Inter", "Helvetica Neue", Arial, sans-serif;
   text-rendering: optimizeLegibility;
@@ -51,6 +75,30 @@ a:hover {
 
 header {
   color: var(--text);
+}
+
+.theme-logo-light {
+  display: none;
+}
+
+.theme-logo-dark {
+  display: block;
+}
+
+:root[data-theme="light"] .theme-logo-light {
+  display: block;
+}
+
+:root[data-theme="light"] .theme-logo-dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-logo-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-logo-dark {
+  display: block;
 }
 
 header a {

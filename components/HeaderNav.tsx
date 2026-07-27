@@ -11,6 +11,10 @@ export default function HeaderNav() {
   const [failedPhotoSrc, setFailedPhotoSrc] = useState<string | null>(null);
   const [hrOpen, setHrOpen] = useState(true);
   const [ticketsOpen, setTicketsOpen] = useState(true);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof document === "undefined") return "dark";
+    return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  });
   const [moduleAccess, setModuleAccess] = useState<Record<AppModuleKey, boolean>>(getDefaultModuleAccess);
 
   useEffect(() => {
@@ -36,6 +40,13 @@ export default function HeaderNav() {
       active = false;
     };
   }, [status]);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = nextTheme;
+    localStorage.setItem("pitstop-theme", nextTheme);
+    setTheme(nextTheme);
+  };
 
   const navGroups = useMemo(
     () => [
@@ -108,7 +119,24 @@ export default function HeaderNav() {
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--glass-strong)] px-4 text-[var(--text)] backdrop-blur-xl shadow-[var(--shadow-soft)]">
-        <Image src="/icon.png" alt="ITCAN 365" width={90} height={0} />
+        <div className="relative h-[51px] w-[90px]" aria-label="ITCAN 365">
+          <Image
+            src="/icon-dark.png"
+            alt=""
+            width={90}
+            height={51}
+            className="theme-logo-dark absolute inset-0 h-auto w-[90px]"
+            priority
+          />
+          <Image
+            src="/icon-light.png"
+            alt=""
+            width={90}
+            height={51}
+            className="theme-logo-light absolute inset-0 h-auto w-[90px]"
+            priority
+          />
+        </div>
         <div className="flex items-center gap-4">
           {status === "authenticated" && (
             <div className="hidden md:flex items-center gap-3">
@@ -231,7 +259,7 @@ export default function HeaderNav() {
                     aria-expanded={ticketsOpen}
                   >
                     <span>IT Tickets</span>
-                    <span className="text-xs text-[var(--text)]/65">{ticketsOpen ? "v" : ">"}</span>
+                    <span className="text-xs text-[var(--text)]/65">{ticketsOpen ? "▾" : "▸"}</span>
                   </button>
                   {ticketsOpen && (
                     <div className="mt-1 space-y-1">
@@ -278,6 +306,24 @@ export default function HeaderNav() {
             </nav>
 
             <div className="border-t border-[var(--border)] px-4 py-4 space-y-3 bg-[var(--glass-strong)]">
+              <div className="flex items-center justify-between gap-3 rounded border border-[var(--border)] bg-[var(--glass)] px-3 py-2">
+                <span className="text-sm font-medium text-[var(--text)]">{theme === "dark" ? "Dark" : "Light"}</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={theme === "dark"}
+                  aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+                  className="relative h-7 w-14 rounded-full border border-[var(--border)] bg-[var(--glass-strong)] p-0.5 transition-colors hover:bg-[var(--glass)]"
+                  onClick={toggleTheme}
+                >
+                  <span
+                    className={`block h-5 w-5 rounded-full bg-[var(--text)] shadow-sm transition-transform ${
+                      theme === "dark" ? "translate-x-7" : "translate-x-0"
+                    }`}
+                  />
+                  <span className="sr-only">{theme === "dark" ? "Dark" : "Light"}</span>
+                </button>
+              </div>
               <div className="flex items-center gap-3">
                 {avatarNode}
                 <div className="min-w-0 leading-tight">

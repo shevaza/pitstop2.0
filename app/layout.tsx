@@ -7,7 +7,23 @@ export const metadata = { title: "PitStop 2.0" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var theme = localStorage.getItem("pitstop-theme");
+                  document.documentElement.dataset.theme = theme === "light" ? "light" : "dark";
+                } catch (_) {
+                  document.documentElement.dataset.theme = "dark";
+                }
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="text-[var(--foreground)] antialiased">
         <Providers>
           <HeaderNav />

@@ -1,6 +1,7 @@
 "use client";
 
 import ModuleGuard from "@/components/ModuleGuard";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -142,6 +143,12 @@ export default function AttendancePage() {
                 >
                   {loading ? "Refreshing..." : "Refresh"}
                 </button>
+                <Link
+                  href="/cross-check"
+                  className="rounded-lg border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-sm font-medium text-[var(--text)] hover:bg-[var(--glass-strong)] hover:text-(--text)!"
+                >
+                  Data Cross Check
+                </Link>
                 <a
                   href="/settings"
                   className="rounded-lg border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-sm font-medium text-[var(--text)] hover:bg-[var(--glass-strong)] hover:text-(--text)!"
