@@ -41,6 +41,8 @@ export default function UserAccessPage() {
     const [searching, setSearching] = useState(false);
     const [users, setUsers] = useState<DirectoryUser[]>([]);
     const [selectedUser, setSelectedUser] = useState<DirectoryUser | null>(null);
+    const [allEmployees, setAllEmployees] = useState(false);
+    const [bulkChanges, setBulkChanges] = useState<Partial<Record<AppModuleKey, ModuleAccessLevel>>>({});
     const [access, setAccess] = useState<Record<AppModuleKey, boolean>>(getDefaultModuleAccess);
     const [accessLevel, setAccessLevel] = useState<Record<AppModuleKey, ModuleAccessLevel>>(getDefaultModuleAccessLevels);
     const [assetGroupAccess, setAssetGroupAccess] = useState<string[]>([...assetGroups]);
@@ -122,25 +124,32 @@ export default function UserAccessPage() {
     }, [loadAccess]);
 
     const handleSave = useCallback(async () => {
-        if (!selectedUser) return;
+        if (!selectedUser && !allEmployees) return;
 
         setSaving(true);
         setError(null);
         setMessage(null);
         try {
             const res = await fetch("/api/user-access", {
-                method: "POST",
+                method: allEmployees ? "PATCH" : "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    userPrincipalName: selectedUser.userPrincipalName,
-                    displayName: selectedUser.displayName,
-                    access,
-                    accessLevel,
-                    assetGroups: assetGroupAccess,
-                }),
+                body: JSON.stringify(allEmployees
+                    ? { changes: bulkChanges, assetGroups: assetGroupAccess }
+                    : {
+                        userPrincipalName: selectedUser!.userPrincipalName,
+                        displayName: selectedUser!.displayName,
+                        access,
+                        accessLevel,
+                        assetGroups: assetGroupAccess,
+                    }),
             });
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
+            if (allEmployees) {
+                setBulkChanges({});
+                setMessage(`Updated ${data.updatedModules} module${data.updatedModules === 1 ? "" : "s"} for ${data.updatedUsers} employees`);
+                return;
+            }
             const nextAccess = data.access ?? access;
             setAccess(nextAccess);
             setAccessLevel(data.accessLevel ?? accessToLevels(nextAccess));
@@ -151,13 +160,15 @@ export default function UserAccessPage() {
         } finally {
             setSaving(false);
         }
-    }, [access, accessLevel, assetGroupAccess, selectedUser]);
+    }, [access, accessLevel, allEmployees, assetGroupAccess, bulkChanges, selectedUser]);
 
     const enabledCount = useMemo(
         () => Object.values(access).filter(Boolean).length,
         [access],
     );
-    const assetGroupSelectionInvalid = access.assets && assetGroupAccess.length === 0;
+    const bulkAssetsEnabled = allEmployees && bulkChanges.assets && bulkChanges.assets !== "none";
+    const assetGroupSelectionInvalid = (allEmployees ? bulkAssetsEnabled : access.assets) && assetGroupAccess.length === 0;
+    const hasBulkChanges = Object.keys(bulkChanges).length > 0;
 
     return (
         <ModuleGuard moduleKey="user-access">
@@ -183,10 +194,25 @@ export default function UserAccessPage() {
                 <section className="grid gap-6 xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
                     <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-5 shadow-[var(--shadow-soft)]">
                         <h2 className="text-lg font-semibold text-[var(--text)]">Find User</h2>
+                        <label className="mt-3 flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--glass-strong)] px-3 py-3 text-sm font-medium text-[var(--text)]">
+                            <input
+                                type="checkbox"
+                                checked={allEmployees}
+                                onChange={(event) => {
+                                    setAllEmployees(event.target.checked);
+                                    setBulkChanges({});
+                                    setMessage(null);
+                                    setError(null);
+                                }}
+                                className="h-4 w-4 rounded border-[var(--border)] bg-[var(--glass)]"
+                            />
+                            Manage access for all employees
+                        </label>
                         <input
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search by name or exact UPN"
+                            disabled={allEmployees}
                             className="mt-3 w-full rounded-lg border border-[var(--border)] bg-[var(--glass-strong)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--text)]/40"
                         />
                         <div className="mt-3 max-h-96 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--glass-strong)]">
@@ -223,7 +249,9 @@ export default function UserAccessPage() {
                             <div>
                                 <h2 className="text-lg font-semibold text-[var(--text)]">Module Access Matrix</h2>
                                 <div className="mt-1 text-sm text-[var(--text)]/65">
-                                    {selectedUser
+                                    {allEmployees
+                                        ? `${Object.keys(bulkChanges).length} module changes selected. Unchanged access will be preserved.`
+                                        : selectedUser
                                         ? `${selectedUser.displayName || selectedUser.userPrincipalName} has ${enabledCount} of ${appModules.length} modules enabled.`
                                         : "Select a user to manage access."}
                                 </div>
@@ -236,7 +264,7 @@ export default function UserAccessPage() {
                                         setAllAccess("read", setAccess, setAccessLevel);
                                         setAssetGroupAccess([...assetGroups]);
                                     }}
-                                    disabled={!selectedUser || loadingAccess}
+                                    disabled={allEmployees || !selectedUser || loadingAccess}
                                 >
                                     Read all
                                 </button>
@@ -247,7 +275,7 @@ export default function UserAccessPage() {
                                         setAllAccess("modify", setAccess, setAccessLevel);
                                         setAssetGroupAccess([...assetGroups]);
                                     }}
-                                    disabled={!selectedUser || loadingAccess}
+                                    disabled={allEmployees || !selectedUser || loadingAccess}
                                 >
                                     Modify all
                                 </button>
@@ -258,14 +286,18 @@ export default function UserAccessPage() {
                                         setAllAccess("none", setAccess, setAccessLevel);
                                         setAssetGroupAccess([]);
                                     }}
-                                    disabled={!selectedUser || loadingAccess}
+                                    disabled={allEmployees || !selectedUser || loadingAccess}
                                 >
                                     Clear all
                                 </button>
                             </div>
                         </div>
 
-                        {selectedUser && (
+                        {allEmployees ? (
+                            <div className="mt-2 text-xs text-amber-200/80">
+                                Bulk updates affect active employee accounts only and change only the modules selected below.
+                            </div>
+                        ) : selectedUser && (
                             <div className="mt-2 text-xs text-[var(--text)]/60">
                                 {selectedUser.userPrincipalName}
                             </div>
@@ -283,8 +315,21 @@ export default function UserAccessPage() {
                                             <div className="text-xs text-[var(--text)]/60">{module.href}</div>
                                         </div>
                                         <select
-                                            value={accessLevel[module.key]}
+                                            value={allEmployees ? (bulkChanges[module.key] ?? "unchanged") : accessLevel[module.key]}
                                             onChange={(event) => {
+                                                if (allEmployees) {
+                                                    const value = event.target.value;
+                                                    setBulkChanges((current) => {
+                                                        const next = { ...current };
+                                                        if (value === "unchanged") delete next[module.key];
+                                                        else next[module.key] = value as ModuleAccessLevel;
+                                                        return next;
+                                                    });
+                                                    if (module.key === "assets" && value !== "none" && value !== "unchanged") {
+                                                        setAssetGroupAccess([...assetGroups]);
+                                                    }
+                                                    return;
+                                                }
                                                 const level = event.target.value as ModuleAccessLevel;
                                                 setAccess((current) => ({
                                                     ...current,
@@ -298,15 +343,16 @@ export default function UserAccessPage() {
                                                     setAssetGroupAccess(level !== "none" ? [...assetGroups] : []);
                                                 }
                                             }}
-                                            disabled={!selectedUser || loadingAccess}
+                                            disabled={(!allEmployees && !selectedUser) || loadingAccess}
                                             className="rounded-lg border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-sm text-[var(--text)] outline-none"
                                         >
+                                            {allEmployees && <option value="unchanged">No change</option>}
                                             <option value="none">No access</option>
                                             <option value="read">Read</option>
                                             <option value="modify">Modify</option>
                                         </select>
                                     </div>
-                                    {module.key === "assets" && access.assets && (
+                                    {module.key === "assets" && (allEmployees ? bulkAssetsEnabled : access.assets) && (
                                         <div className="mt-3 border-t border-[var(--border)]/70 pt-3">
                                             <div className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-[var(--text)]/50">
                                                 Asset Groups
@@ -325,7 +371,7 @@ export default function UserAccessPage() {
                                                                     return current.filter((item) => item !== group);
                                                                 });
                                                             }}
-                                                            disabled={!selectedUser || loadingAccess}
+                                                            disabled={(!allEmployees && !selectedUser) || loadingAccess}
                                                             className="h-4 w-4 rounded border-[var(--border)] bg-[var(--glass)]"
                                                         />
                                                         {group}
@@ -343,11 +389,11 @@ export default function UserAccessPage() {
                                 type="button"
                                 className="rounded-lg border border-[var(--border)] bg-[var(--glass)] px-4 py-2 text-sm font-semibold text-[var(--text)] shadow-[var(--shadow-soft)] hover:bg-[var(--glass-strong)] disabled:cursor-not-allowed disabled:opacity-60"
                                 onClick={() => void handleSave()}
-                                disabled={!selectedUser || saving || loadingAccess || assetGroupSelectionInvalid}
+                                disabled={(!allEmployees && !selectedUser) || (allEmployees && !hasBulkChanges) || saving || loadingAccess || assetGroupSelectionInvalid}
                             >
-                                {saving ? "Saving..." : "Save access"}
+                                {saving ? "Saving..." : allEmployees ? "Apply to all employees" : "Save access"}
                             </button>
-                            {(assetGroupSelectionInvalid || loadingAccess || (!selectedUser && status === "authenticated")) && (
+                            {(assetGroupSelectionInvalid || loadingAccess || (!allEmployees && !selectedUser && status === "authenticated")) && (
                                 <span className="text-xs text-[var(--text)]/60">
                                     {assetGroupSelectionInvalid
                                         ? "Select at least one asset group."

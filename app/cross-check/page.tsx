@@ -22,6 +22,17 @@ type AttendanceResponse = {
   columns: string[];
 };
 
+type ComparisonKind = "conflict" | "missing" | "ok" | "weekend";
+
+type ComparisonRow = JsonRecord & {
+  Date: string;
+  Day: string;
+  Leave: string;
+  Punches: number;
+  Result: string;
+  __kind: ComparisonKind;
+};
+
 const apiBaseUrl = "/api/cross-check";
 
 export default function CrossCheckPage() {
@@ -76,6 +87,13 @@ export default function CrossCheckPage() {
     () => tables.filter((table) => table.title.toLowerCase() !== "logs"),
     [tables],
   );
+  const comparisonRows = useMemo(
+    () => buildComparisonRows(logsTable?.rows ?? [], punchRows),
+    [logsTable, punchRows],
+  );
+  const anomalyCount = comparisonRows.filter(
+    (row) => row.__kind === "conflict" || row.__kind === "missing",
+  ).length;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -142,7 +160,7 @@ export default function CrossCheckPage() {
             throw new Error(msg);
           }
           const json = (await res.json()) as AttendanceResponse;
-          return json.rows ?? [];
+          return (json.rows ?? []).map((row) => ({ ...row, "Cross-check Date": date }));
         }),
       );
 
@@ -236,13 +254,38 @@ export default function CrossCheckPage() {
             <>
               {logsTable && (
                 <>
-                  <ResultTableView title={logsTable.title} rows={logsTable.rows} columns={logsTable.columns} />
+                  <div className="xl:col-span-2">
+                    <ResultTableView
+                      title={`Daily Comparison${punchesLoading ? " - loading punches..." : ` - ${anomalyCount} abnormalities`}`}
+                      rows={comparisonRows}
+                      columns={["Date", "Day", "Leave", "Punches", "Result"]}
+                      loading={punchesLoading}
+                      emptyMessage={punchesError || "No dates were available to compare."}
+                      rowClassName={(row) => comparisonRowClass(row.__kind)}
+                    />
+                  </div>
+                  <ResultTableView
+                    title={logsTable.title}
+                    rows={logsTable.rows}
+                    columns={logsTable.columns}
+                    rowClassName={(row) => {
+                      const date = parseDateOnly(getValueByKey(row, "Period"));
+                      return comparisonRowClass(
+                        comparisonRows.find((item) => item.Date === date)?.__kind,
+                      );
+                    }}
+                  />
                   <ResultTableView
                     title={badgeNumber ? `MSSQL Punches - Badge ${badgeNumber}` : "MSSQL Punches"}
                     rows={punchRows}
                     columns={punchColumns}
                     loading={punchesLoading}
                     emptyMessage={punchesError || "No punch rows found."}
+                    rowClassName={(row) =>
+                      comparisonRowClass(
+                        comparisonRows.find((item) => item.Date === getPunchDate(row))?.__kind,
+                      )
+                    }
                   />
                 </>
               )}
@@ -272,7 +315,12 @@ function ResultTableView({
   columns,
   loading = false,
   emptyMessage = "No rows found.",
-}: ResultTable & { loading?: boolean; emptyMessage?: string }) {
+  rowClassName,
+}: ResultTable & {
+  loading?: boolean;
+  emptyMessage?: string;
+  rowClassName?: (row: JsonRecord) => string;
+}) {
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-4 shadow-[var(--shadow-soft)]">
       <div className="mb-3">
@@ -307,7 +355,7 @@ function ResultTableView({
               rows.map((row, rowIndex) => (
                 <tr
                   key={rowIndex}
-                  className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(14,3,219,0.12)]"
+                  className={`border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(14,3,219,0.12)] ${rowClassName?.(row) ?? ""}`}
                 >
                   {columns.map((column) => (
                     <td key={column} className="px-3 py-2 align-top">
@@ -345,6 +393,105 @@ async function resolveBadgeNumber(selectedUserLabel: string) {
   }
 
   throw new Error(`No badge number found for ${stripActiveStatus(selectedUserLabel)}.`);
+}
+
+function buildComparisonRows(logRows: JsonRecord[], punchRows: JsonRecord[]): ComparisonRow[] {
+  const logsByDate = new Map<string, JsonRecord[]>();
+  for (const row of logRows) {
+    const date = parseDateOnly(getValueByKey(row, "Period"));
+    if (!date) continue;
+    logsByDate.set(date, [...(logsByDate.get(date) ?? []), row]);
+  }
+
+  const punchesByDate = new Map<string, number>();
+  for (const row of punchRows) {
+    const date = getPunchDate(row);
+    if (date) punchesByDate.set(date, (punchesByDate.get(date) ?? 0) + 1);
+  }
+
+  return Array.from(logsByDate.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([date, rows]) => {
+      const leaveLabels = rows.map(getLeaveLabel).filter(Boolean);
+      const leave = Array.from(new Set(leaveLabels)).join(", ");
+      const punches = punchesByDate.get(date) ?? 0;
+      const dateValue = new Date(`${date}T00:00:00`);
+      const day = dateValue.toLocaleDateString("en-US", { weekday: "short" });
+      const isWeekend = dateValue.getDay() === 0 || dateValue.getDay() === 6;
+
+      let kind: ComparisonKind = "ok";
+      let result = "OK";
+      if (leave && punches > 0) {
+        kind = "conflict";
+        result = "Abnormal: leave submitted but punches exist";
+      } else if (!isWeekend && !leave && punches === 0) {
+        kind = "missing";
+        result = "Abnormal: no punches and no leave";
+      } else if (isWeekend && !leave && punches === 0) {
+        kind = "weekend";
+        result = "Weekend";
+      } else if (leave) {
+        result = "Leave - no punches";
+      } else {
+        result = "Attendance recorded";
+      }
+
+      return {
+        Date: date,
+        Day: day,
+        Leave: leave || "None",
+        Punches: punches,
+        Result: result,
+        __kind: kind,
+      };
+    });
+}
+
+function getLeaveLabel(row: JsonRecord) {
+  const leaveEntries = Object.entries(row).filter(([key]) => {
+    const normalized = normalizeComparable(key);
+    return (
+      normalized.includes("leave") ||
+      normalized.includes("vacation") ||
+      normalized.includes("absence") ||
+      normalized.includes("timeoff")
+    );
+  });
+
+  const meaningful = leaveEntries
+    .map(([, value]) => formatValue(value).trim())
+    .filter((value) => !isEmptyLeaveValue(value));
+  if (meaningful.length > 0) return meaningful.join(" - ");
+
+  const knownLeaveValue = Object.values(row)
+    .map((value) => formatValue(value).trim())
+    .find((value) => /\b(annual leave|vacation|sick leave|personal leave|unpaid leave|time off)\b/i.test(value));
+  return knownLeaveValue ?? "";
+}
+
+function isEmptyLeaveValue(value: string) {
+  return /^(?:-|0|false|none|null|n\/a|no leave|working|present|available)?$/i.test(value);
+}
+
+function getPunchDate(row: JsonRecord) {
+  const crossCheckDate = parseDateOnly(getValueByKey(row, "Cross-check Date"));
+  if (crossCheckDate) return crossCheckDate;
+
+  const likelyDateColumn = Object.keys(row).find((key) => {
+    const normalized = normalizeComparable(key);
+    return normalized.includes("date") || normalized.includes("time");
+  });
+  return likelyDateColumn ? parseDateOnly(row[likelyDateColumn]) : "";
+}
+
+function comparisonRowClass(kind: unknown) {
+  if (kind === "conflict") {
+    return "border-l-4 border-l-red-600 bg-[color:rgba(239,68,68,0.24)] text-[var(--text)] hover:bg-[color:rgba(239,68,68,0.32)]!";
+  }
+  if (kind === "missing") {
+    return "border-l-4 border-l-amber-600 bg-[color:rgba(245,158,11,0.28)] text-[var(--text)] hover:bg-[color:rgba(245,158,11,0.36)]!";
+  }
+  return "";
 }
 
 function getPeriodDates(rows: JsonRecord[]) {

@@ -39,6 +39,7 @@ type Ticket = {
     assigned_to_upn?: string | null;
     created_at: string;
     updated_at: string;
+    archived_at?: string | null;
     comments?: TicketComment[];
     attachments?: TicketAttachment[];
 };
@@ -118,9 +119,11 @@ export default function ItTicketsAdminPage() {
     }, [load]);
 
     const filteredTickets = useMemo(() => {
-        if (filter === "all") return tickets;
-        if (filter === "closed") return tickets.filter((ticket) => ["resolved", "closed"].includes(ticket.status));
-        return tickets.filter((ticket) => !["resolved", "closed"].includes(ticket.status));
+        if (filter === "archived") return tickets.filter((ticket) => Boolean(ticket.archived_at));
+        const unarchived = tickets.filter((ticket) => !ticket.archived_at);
+        if (filter === "all") return unarchived;
+        if (filter === "closed") return unarchived.filter((ticket) => ["resolved", "closed"].includes(ticket.status));
+        return unarchived.filter((ticket) => !["resolved", "closed"].includes(ticket.status));
     }, [filter, tickets]);
 
     const selectedTicket = useMemo(
@@ -164,6 +167,33 @@ export default function ItTicketsAdminPage() {
         }
     };
 
+    const setArchived = async (archived: boolean) => {
+        if (!selectedTicket) return;
+        setSaving(true);
+        setMessage(null);
+        try {
+            const res = await fetch("/api/it-tickets/admin", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: selectedTicket.id,
+                    status: selectedTicket.status,
+                    priority: selectedTicket.priority,
+                    assignedToUpn: selectedTicket.assigned_to_upn,
+                    archived,
+                }),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            await load();
+            setSelectedId(null);
+            setMessage(archived ? "Ticket archived" : "Ticket restored");
+        } catch (error) {
+            setMessage(error instanceof Error ? error.message : "Failed to update ticket archive");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const updateAttachments = async (event: ChangeEvent<HTMLInputElement>) => {
         setAttachments(await filesToAttachments(event.target.files));
         event.target.value = "";
@@ -199,7 +229,7 @@ export default function ItTicketsAdminPage() {
                 <section className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
                     <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-4 shadow-[var(--shadow-soft)]">
                         <div className="mb-3 flex gap-2">
-                            {["active", "closed", "all"].map((option) => (
+                            {["active", "closed", "all", "archived"].map((option) => (
                                 <button
                                     key={option}
                                     type="button"
@@ -293,14 +323,24 @@ export default function ItTicketsAdminPage() {
                                         <AttachmentGallery attachments={attachments} />
                                     </label>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => void save()}
-                                    disabled={saving}
-                                    className="mt-4 rounded border border-[var(--border)] bg-[color:rgba(14,3,219,0.24)] px-4 py-2 text-sm font-medium text-[var(--text)] disabled:opacity-50"
-                                >
-                                    {saving ? "Saving..." : "Save Ticket"}
-                                </button>
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => void save()}
+                                        disabled={saving}
+                                        className="rounded border border-[var(--border)] bg-[color:rgba(14,3,219,0.24)] px-4 py-2 text-sm font-medium text-[var(--text)] disabled:opacity-50"
+                                    >
+                                        {saving ? "Saving..." : "Save Ticket"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => void setArchived(!selectedTicket.archived_at)}
+                                        disabled={saving}
+                                        className="rounded border border-[var(--border)] bg-[var(--glass-strong)] px-4 py-2 text-sm font-medium text-[var(--text)] disabled:opacity-50"
+                                    >
+                                        {selectedTicket.archived_at ? "Unarchive Ticket" : "Archive Ticket"}
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-5 shadow-[var(--shadow-soft)]">

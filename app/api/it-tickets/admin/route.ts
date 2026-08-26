@@ -18,6 +18,7 @@ const payloadSchema = z.object({
         mimeType: z.string().trim().regex(/^image\//),
         dataUrl: z.string().trim().startsWith("data:image/").max(7_000_000),
     })).max(5).optional(),
+    archived: z.boolean().optional(),
 });
 
 async function getActor(requiredLevel: "read" | "modify" = "read") {
@@ -55,6 +56,7 @@ export async function PATCH(req: Request) {
             comment: parsed.comment,
             visibility: parsed.visibility,
             attachments: parsed.attachments,
+            archived: parsed.archived,
             actor,
         });
         return Response.json({ ticket });

@@ -31,6 +31,11 @@ type SaveModuleAccessInput = {
     assetGroups?: AssetGroup[];
 };
 
+type PatchModuleAccessUser = {
+    userPrincipalName: string;
+    displayName?: string | null;
+};
+
 function normalizeUpn(value: string) {
     return value.trim().toLowerCase();
 }
@@ -157,6 +162,39 @@ export async function saveModuleAccess(input: SaveModuleAccessInput) {
     });
 
     return getModuleAccessMap(normalizedUpn);
+}
+
+export async function patchModuleAccessForUsers(
+    users: PatchModuleAccessUser[],
+    moduleKey: AppModuleKey,
+    level: ModuleAccessLevel,
+    updatedByUpn?: string | null,
+    selectedAssetGroups?: AssetGroup[],
+) {
+    const normalizedLevel = normalizeModuleAccessLevel(level);
+    const rows = users.map((user) => ({
+        user_principal_name: normalizeUpn(user.userPrincipalName),
+        display_name: user.displayName?.trim() || null,
+        module_key: moduleKey,
+        allowed: normalizedLevel !== "none",
+        access_level: normalizedLevel,
+        asset_groups:
+            moduleKey === "assets" && normalizedLevel !== "none"
+                ? normalizeAssetGroups(selectedAssetGroups)
+                : null,
+        updated_by_upn: updatedByUpn?.trim().toLowerCase() || null,
+    }));
+
+    // Keep requests bounded while still using upserts. Only the selected module row
+    // is written, so every user's other module and feature access is preserved.
+    for (let index = 0; index < rows.length; index += 500) {
+        await supabaseRequest<ModuleAccessRow[]>("user_module_access", {
+            method: "POST",
+            body: rows.slice(index, index + 500),
+            query: { on_conflict: "user_principal_name,module_key" },
+            headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+        });
+    }
 }
 
 export async function canAccessModule(userPrincipalName: string, moduleKey: AppModuleKey) {

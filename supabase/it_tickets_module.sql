@@ -12,7 +12,8 @@ create table if not exists public.it_tickets (
     assigned_to_upn text,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
-    closed_at timestamptz
+    closed_at timestamptz,
+    archived_at timestamptz
 );
 
 create table if not exists public.it_ticket_comments (
@@ -42,6 +43,7 @@ alter table if exists public.it_tickets add column if not exists priority text n
 alter table if exists public.it_tickets add column if not exists status text not null default 'open';
 alter table if exists public.it_tickets add column if not exists assigned_to_upn text;
 alter table if exists public.it_tickets add column if not exists closed_at timestamptz;
+alter table if exists public.it_tickets add column if not exists archived_at timestamptz;
 
 create or replace function public.set_updated_at()
 returns trigger

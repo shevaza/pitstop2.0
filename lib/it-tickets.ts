@@ -42,6 +42,7 @@ export type TicketRecord = {
     created_at: string;
     updated_at: string;
     closed_at?: string | null;
+    archived_at?: string | null;
     comments?: TicketComment[];
     attachments?: TicketAttachment[];
 };
@@ -185,6 +186,7 @@ export async function updateTicket(id: string, input: {
     comment?: string | null;
     visibility?: "public" | "internal";
     attachments?: TicketAttachmentInput[];
+    archived?: boolean;
 }) {
     const [ticket] = await supabaseRequest<TicketRecord[]>("it_tickets", {
         method: "PATCH",
@@ -198,6 +200,9 @@ export async function updateTicket(id: string, input: {
             priority: input.priority,
             assigned_to_upn: input.assignedToUpn?.trim().toLowerCase() || null,
             closed_at: ["resolved", "closed"].includes(input.status) ? new Date().toISOString() : null,
+            ...(input.archived === undefined
+                ? {}
+                : { archived_at: input.archived ? new Date().toISOString() : null }),
         },
     });
 
