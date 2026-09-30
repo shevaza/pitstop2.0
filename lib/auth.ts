@@ -40,6 +40,8 @@ export const authOptions: NextAuthOptions = {
             clientId: azureAdClientId,
             clientSecret: azureAdClientSecret,
             tenantId: azureAdTenantId,
+            // Allow Microsoft discovery and token requests to finish on slower connections.
+            httpOptions: { timeout: 15_000 },
             authorization: { params: { scope: "openid profile email offline_access" } },
         }),
     ],
