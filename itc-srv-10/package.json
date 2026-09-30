@@ -3,12 +3,21 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.16" },
+  "engines": {
+    "node": ">=22.16"
+  },
   "scripts": {
     "start": "node --env-file=.env src/server.mjs",
     "test": "node --test test/*.test.mjs",
     "migrate": "node scripts/migrate-settings.mjs",
-    "diagnose": "node --env-file=.env scripts/diagnose.mjs"
+    "diagnose": "node --env-file=.env scripts/diagnose.mjs",
+    "install:browser": "playwright install chromium",
+    "migrate:scraper": "node scripts/migrate-scraper.mjs",
+    "test:browser": "node --test test/browser/*.test.mjs",
+    "diagnose:scraper": "node --env-file=.env scripts/diagnose-scraper.mjs"
   },
-  "dependencies": { "mssql": "^12.1.1" }
+  "dependencies": {
+    "mssql": "^12.1.1",
+    "playwright": "^1.61.1"
+  }
 }

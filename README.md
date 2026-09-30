@@ -163,3 +163,5 @@ pnpm prisma migrate deploy
 - If module access calls fail, verify `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
 - If Prisma fails to connect, verify `DATABASE_URL`.
 - If attendance data is missing, use Settings to check service connectivity, then verify the internal API, Cloudflare Access policy, and server-only `ATTENDANCE_*` environment values. See [troubleshooting and setup](itc-srv-10/README.md).
+
+Attendance cross-check scraping is integrated into `itc-srv-10`; run one internal API plus Caddy. See [scraper setup](itc-srv-10/README.md#integrated-legacy-site-scraper). The old `LEAVE_API_BASE_URL` is unused. Redeploy web and rebuild mobile for job polling support.

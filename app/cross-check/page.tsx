@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchCrossCheck } from "@/lib/cross-check-client";
 import ModuleGuard from "@/components/ModuleGuard";
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -56,7 +57,7 @@ export default function CrossCheckPage() {
       setUsersLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${apiBaseUrl}/leave-users`, { cache: "no-store" });
+        const res = await fetchCrossCheck(`${apiBaseUrl}/leave-users`);
         if (!res.ok) {
           const msg = (await res.text()) || `Request failed with ${res.status}`;
           throw new Error(msg);
@@ -108,9 +109,7 @@ export default function CrossCheckPage() {
 
     try {
       const params = new URLSearchParams({ year, employeeId });
-      const res = await fetch(`${apiBaseUrl}/employee-leaves?${params.toString()}`, {
-        cache: "no-store",
-      });
+      const res = await fetchCrossCheck(`${apiBaseUrl}/employee-leaves?${params.toString()}`);
       if (!res.ok) {
         const msg = (await res.text()) || `Request failed with ${res.status}`;
         throw new Error(msg);
@@ -369,7 +368,7 @@ function ResultTableView({
 }
 
 async function resolveBadgeNumber(selectedUserLabel: string) {
-  const res = await fetch(`${apiBaseUrl}/pitstop-data`, { cache: "no-store" });
+  const res = await fetchCrossCheck(`${apiBaseUrl}/pitstop-data`);
   if (!res.ok) {
     const msg = (await res.text()) || `Pitstop data request failed with ${res.status}`;
     throw new Error(msg);

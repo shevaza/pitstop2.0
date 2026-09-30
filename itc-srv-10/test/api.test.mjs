@@ -3,9 +3,23 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { createHandler, parseFilters } from '../src/app.mjs';
 import { normalizeReports } from '../src/config.mjs';
+import { createScraperJobs } from '../src/scraper-jobs.mjs';
 
 const token = 'a'.repeat(64);
 const reports = normalizeReports([{ id: 'attendance-default', name: 'Attendance', query: 'SELECT TOP ({{limit}}) * FROM Attendance WHERE VerifyTime >= {{fromDate}}' }]);
+test('authenticated scraper jobs share the service without querying SQL', async (t) => {
+  const jobs = createScraperJobs({ configured: true, close: async () => {}, execute: async () => ({ success: true, users: [] }) });
+  t.after(() => jobs.close());
+  const api = await service(t, { scraperJobs: jobs, health: async () => { throw new Error('SQL unavailable'); } });
+  const path = `/v1/scraper/leave-users?owner=${'a'.repeat(64)}`;
+  const start = await (await api.request(path)).json();
+  assert.equal(start.state, 'pending');
+  await new Promise(resolve => setImmediate(resolve));
+  const done = await (await api.request(`${path}&jobId=${start.jobId}`)).json();
+  assert.deepEqual(done, { state: 'done', data: { success: true, users: [] } });
+  assert.equal(api.calls.length, 0);
+  assert.equal((await api.request(`${path}&jobId=${start.jobId}`.replace('a'.repeat(64), 'b'.repeat(64)))).status, 404);
+});
 async function service(t, options = {}) {
   const calls = [];
   const logs = [];
@@ -22,7 +36,7 @@ async function service(t, options = {}) {
 
 test('requires authentication for every endpoint and never executes unauthenticated SQL', async (t) => {
   const api = await service(t);
-  for (const path of ['/v1/attendance', '/v1/reports', '/v1/health']) {
+  for (const path of ['/v1/attendance', '/v1/reports', '/v1/health', '/v1/scraper/leave-users']) {
     const response = await api.request(path, { headers: {} });
     assert.equal(response.status, 401);
     assert.equal(response.headers.get('cache-control'), 'no-store');

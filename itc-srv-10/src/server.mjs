@@ -2,8 +2,11 @@ import { createServer } from 'node:http';
 import sql from 'mssql';
 import { loadConfig } from './config.mjs';
 import { createHandler } from './app.mjs';
+import { createScraper, scraperConfig } from './scraper.mjs';
+import { createScraperJobs } from './scraper-jobs.mjs';
 
 const config = await loadConfig();
+const scraperJobs = createScraperJobs(createScraper(scraperConfig()));
 let poolPromise;
 async function getPool() {
   if (!poolPromise) {
@@ -20,6 +23,7 @@ async function getPool() {
 
 const handler = createHandler({
   ...config,
+  scraperJobs,
   health: async () => { await (await getPool()).request().query('SELECT 1 AS ok'); },
   execute: async (report, filters) => {
     const request = (await getPool()).request();
@@ -37,6 +41,7 @@ server.listen(config.port, config.host, () => console.info(`Attendance API liste
 async function shutdown() {
   const deadline = setTimeout(() => process.exit(1), 25000);
   deadline.unref();
+  await scraperJobs.close();
   server.close(async () => {
     try { await (await poolPromise)?.close(); } finally { process.exit(0); }
   });

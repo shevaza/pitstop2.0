@@ -110,6 +110,31 @@ For `SQL_TLS_CERTIFICATE`, obtain the public issuing CA certificate from IT as a
 
 ## API and operations
 
+### Integrated legacy-site scraper
+
+The former `pitstop-scraper` now runs inside this Node service. No separate Express process or port 4000 is needed. Original files are kept locally for reference and excluded from cloud deployment.
+
+On the internal machine, deploy the updated folder, then:
+
+```powershell
+npm ci
+npm run install:browser
+# Once, if migrating configuration from the original sibling folder:
+npm run migrate:scraper
+npm run diagnose:scraper
+npm start
+```
+
+Alternatively, configure `PITSTOP_URL`, `PITSTOP_USER`, and `PITSTOP_PASS` directly in the internal `.env`. The migration copies only these keys, preserves nonempty existing values, and does not print secrets. Install Chromium using the same Windows account that runs the API; Playwright's browser cache is per user. Credentials and browser binaries stay off Vercel. The legacy site's HTTP/HTTPS setting is separate from API HTTPS; prefer HTTPS when the source supports it.
+
+The existing three Next.js `/api/cross-check/*` routes use the same `ATTENDANCE_API_*` configuration, MikroTik port, certificate and bearer token as SQL attendance. `LEAVE_API_BASE_URL` is no longer used. No Caddy or MikroTik changes are needed. Redeploy the web app and rebuild the mobile app because they now handle pending jobs; older clients do not understand the intermediate 202 response.
+
+Protected internal endpoints are `/v1/scraper/pitstop-data`, `/v1/scraper/leave-users`, and `/v1/scraper/employee-leaves`. The proxy derives an opaque owner ID from the authenticated user. Starting a request returns a job ID immediately; web/mobile poll every three seconds. The final JSON keeps the original `rows`, `users`, or `logs`/`balances` format. Queries cannot supply arbitrary target URLs or credentials.
+
+Two browsers can run at once, with up to 20 retained jobs and a three-minute execution deadline. Results are held in memory for five minutes and capped at 3 MiB each. Pending identical requests by the same user are deduplicated. Completed jobs are not reused as a data cache. Restarting the internal API clears jobs; users should rerun interrupted requests. Run one service instance unless a shared job store is added. Each HTTP poll retains the existing 25-second timeout; no Vercel invocation waits for the entire scrape. Browsers close on success, failure, cancellation and shutdown.
+
+`npm test` covers job isolation, limits and cleanup. `npm run test:browser` exercises actual Chromium against a local fixture site, including pagination and employee selection. `npm run diagnose:scraper` performs a live read-only login/list check and prints counts only.
+
 All endpoints require `Authorization: Bearer <ATTENDANCE_API_TOKEN>` and return `Cache-Control: no-store`.
 
 | Method/path | Purpose |

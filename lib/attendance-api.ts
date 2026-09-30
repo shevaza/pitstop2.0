@@ -145,6 +145,16 @@ export async function fetchAttendanceSettings(): Promise<AttendanceApiSettings> 
     return { ...await apiGet("/v1/reports", reportsSchema), managedBy: "internal-api" };
 }
 
+const scraperResultSchema = z.discriminatedUnion("state", [
+    z.object({ state: z.literal("pending"), jobId: z.string().uuid() }),
+    z.object({ state: z.literal("done"), data: z.record(z.string(), z.unknown()) }),
+    z.object({ state: z.literal("failed"), error: z.string() }),
+]);
+
+export async function fetchScraper(kind: "pitstop-data" | "leave-users" | "employee-leaves", params: URLSearchParams) {
+    return apiGet(`/v1/scraper/${kind}?${params.toString()}`, scraperResultSchema);
+}
+
 export function attendanceErrorResponse(error: unknown) {
     const known = error instanceof AttendanceApiError;
     return new Response(known ? error.message : "Attendance service is unavailable.", {

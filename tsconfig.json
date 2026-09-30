@@ -49,6 +49,7 @@
   "exclude": [
     "node_modules",
     ".next/dev",
-    "itc-srv-10"
+    "itc-srv-10",
+    "pitstop-scraper"
   ]
 }

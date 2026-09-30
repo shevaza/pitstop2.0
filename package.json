@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "test:attendance": "node --test tests/attendance-api.test.mjs && npm --prefix itc-srv-10 test"
+    "test:attendance": "node --test tests/attendance-api.test.mjs tests/cross-check-client.test.mjs && npm --prefix itc-srv-10 test"
   },
   "dependencies": {
     "@azure/msal-node": "^3.8.0",

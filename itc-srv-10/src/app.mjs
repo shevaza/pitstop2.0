@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual, randomUUID } from 'node:crypto';
 import { diagnoseSqlError } from './diagnostics.mjs';
+import { ScraperError } from './scraper-jobs.mjs';
 
 export class InputError extends Error {}
 
@@ -29,7 +30,7 @@ export function parseFilters(params) {
 
 const digest = (value) => createHash('sha256').update(value).digest();
 
-export function createHandler({ token, reports, rateLimit = 120, execute, health, log = console.info }) {
+export function createHandler({ token, reports, rateLimit = 120, execute, health, scraperJobs, log = console.info }) {
   const expected = digest(`Bearer ${token}`);
   const summaries = reports.map(({ id, name }) => ({ id, name }));
   let windowStart = Date.now();
@@ -74,7 +75,10 @@ export function createHandler({ token, reports, rateLimit = 120, execute, health
     active++;
     try {
       const url = new URL(req.url, 'http://localhost');
-      if (url.pathname === '/v1/health') {
+      if (url.pathname.startsWith('/v1/scraper/')) {
+        if (!scraperJobs) throw new ScraperError('Scraper is not configured on the internal server.', 503);
+        send(200, scraperJobs.request(url.pathname.slice('/v1/scraper/'.length), url.searchParams));
+      } else if (url.pathname === '/v1/health') {
         await health();
         send(200, { ok: true });
       } else if (url.pathname === '/v1/reports') {
@@ -95,6 +99,10 @@ export function createHandler({ token, reports, rateLimit = 120, execute, health
         send(404, { error: 'Not found' });
       }
     } catch (error) {
+      if (error instanceof ScraperError) {
+        send(error.status, { error: error.message });
+        return;
+      }
       if (!(error instanceof InputError)) log(JSON.stringify({ requestId, ...diagnoseSqlError(error) }));
       // Never return SQL errors, queries, connection details or records to the caller/logs.
       send(error instanceof InputError ? 400 : 503, {

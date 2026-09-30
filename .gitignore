@@ -52,3 +52,6 @@ next-env.d.ts
 /.data/mssql-settings.json
 !/.env.attendance.example
 !/itc-srv-10/.env.example
+
+# Retired standalone scraper (original source kept locally)
+/pitstop-scraper/
