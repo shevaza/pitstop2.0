@@ -9,7 +9,7 @@ PitStop 2.0 is a Next.js application with Prisma, Azure AD authentication, optio
 - Prisma with SQLite for local app data
 - Azure AD via `next-auth`
 - Supabase REST access with a service role key
-- Optional MSSQL connection for attendance data
+- Internal attendance API for MSSQL attendance data
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ Install these before setting up the project:
 - `pnpm` 9 or later
 - Access to the Azure AD app registration used by the project
 - Access to the Supabase project used by the project
-- Optional: access to the MSSQL server if you want attendance/reporting features
+- Optional: internal attendance API deployment for attendance/reporting features
 
 ## Clone and install
 
@@ -51,13 +51,10 @@ SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
 ALLOWED_DOMAIN="your-company.com"
 ALLOWED_GROUP_IDS="group-guid-1,group-guid-2"
 
-MSSQL_SERVER="your-sql-server"
-MSSQL_DATABASE="your-database"
-MSSQL_USER="your-username"
-MSSQL_PASSWORD="your-password"
-MSSQL_ENCRYPT="true"
-MSSQL_TRUST_SERVER_CERT="true"
-MSSQL_ATTENDANCE_QUERY="SELECT TOP ({{limit}}) * FROM Attendance ORDER BY [Date] DESC"
+ATTENDANCE_API_URL="https://attendance-api.example.com"
+ATTENDANCE_API_TOKEN="internal-api-token"
+ATTENDANCE_CF_ACCESS_CLIENT_ID="cloudflare-service-token-id"
+ATTENDANCE_CF_ACCESS_CLIENT_SECRET="cloudflare-service-token-secret"
 ```
 
 ### Required values
@@ -75,8 +72,7 @@ MSSQL_ATTENDANCE_QUERY="SELECT TOP ({{limit}}) * FROM Attendance ORDER BY [Date]
 
 - `ALLOWED_DOMAIN`: restrict access to users from one email domain.
 - `ALLOWED_GROUP_IDS`: comma-separated Azure AD group IDs for access control.
-- `MSSQL_*`: only needed if you use the attendance/reporting module.
-- `MSSQL_ATTENDANCE_QUERY`: custom SQL query template for attendance retrieval.
+- `ATTENDANCE_API_*` and `ATTENDANCE_CF_ACCESS_*`: server-only attendance service credentials. See [internal API setup](itc-srv-10/README.md). SQL credentials and queries stay on the internal server.
 
 ## Database and local data setup
 
@@ -92,7 +88,7 @@ If you are starting from scratch and want Prisma to create/update local schema d
 pnpm prisma migrate dev
 ```
 
-The app also stores MSSQL connection settings in `.data/mssql-settings.json` when configured through the UI. You do not need to create that file manually.
+Attendance uses the service in [`itc-srv-10`](itc-srv-10/README.md). The web and mobile settings screens show connection status and report names. Configure SQL credentials and reports locally on the internal service; the old `.data/mssql-settings.json` is no longer read by Next.js. A migration command is documented in the service README.
 
 ## Azure AD configuration
 
@@ -166,4 +162,4 @@ pnpm prisma migrate deploy
 - If `/api/auth/providers` returns `localhost` URLs on the VPS, set `NEXTAUTH_URL` to the public VPS URL and restart the app.
 - If module access calls fail, verify `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
 - If Prisma fails to connect, verify `DATABASE_URL`.
-- If attendance data is missing, verify the `MSSQL_*` values or the saved `.data/mssql-settings.json` configuration.
+- If attendance data is missing, use Settings to check service connectivity, then verify the internal API, Cloudflare Access policy, and server-only `ATTENDANCE_*` environment values. See [troubleshooting and setup](itc-srv-10/README.md).

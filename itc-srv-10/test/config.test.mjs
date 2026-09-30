@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { loadConfig } from '../src/config.mjs';
+
+test('loads named-instance configuration with verified encryption, bounded SQL timeouts and environment precedence', async (t) => {
+  const folder = await mkdtemp(join(tmpdir(), 'attendance-config-'));
+  t.after(() => rm(folder, { recursive: true, force: true }));
+  const reports = join(folder, 'reports.json');
+  const settings = join(folder, 'settings.json');
+  await writeFile(reports, JSON.stringify([{ id: 'test', name: 'Test', query: 'SELECT TOP (@limit) * FROM Attendance' }]));
+  await writeFile(settings, JSON.stringify({ server: 'ITC-SRV-10\\CORP', database: 'test', user: 'read_only', password: 'fixture-password', encrypt: false, trustServerCertificate: true }));
+  const env = { ATTENDANCE_API_TOKEN: 't'.repeat(64), REPORTS_FILE: reports, MSSQL_SETTINGS_FILE: settings };
+  const config = await loadConfig(env);
+  assert.equal(config.host, '127.0.0.1');
+  assert.equal(config.sql.server, 'ITC-SRV-10');
+  assert.equal(config.sql.options.instanceName, 'CORP');
+  assert.equal(config.sql.options.encrypt, true);
+  assert.equal(config.sql.options.trustServerCertificate, false);
+  assert.equal(config.sql.requestTimeout, 15000);
+  assert.equal((await loadConfig({ ...env, MSSQL_USER: 'override' })).sql.user, 'override');
+  await assert.rejects(loadConfig({ ...env, MSSQL_PORT: '1433' }), /not both/);
+  const portConfig = await loadConfig({ ...env, MSSQL_SERVER: 'sql.internal.example', MSSQL_PORT: '1433' });
+  assert.equal(portConfig.sql.port, 1433);
+  assert.equal(portConfig.sql.options.instanceName, undefined);
+  await assert.rejects(loadConfig({ ...env, ATTENDANCE_API_TOKEN: 'short' }), /32/);
+  await assert.rejects(loadConfig({ ...env, MSSQL_ENCRYPT: 'invalid' }), /true or false/);
+});

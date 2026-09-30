@@ -147,22 +147,18 @@ export default function CrossCheckPage() {
         throw new Error("No valid Period dates were found in Logs.");
       }
 
-      const rowsByDate = await Promise.all(
-        periodDates.map(async (date) => {
-          const params = new URLSearchParams({
-            fromDate: date,
-            toDate: date,
-            limit: "2000",
-          });
-          const res = await fetch(`/api/attendance?${params.toString()}`, { cache: "no-store" });
-          if (!res.ok) {
-            const msg = (await res.text()) || `Attendance request failed with ${res.status}`;
-            throw new Error(msg);
-          }
-          const json = (await res.json()) as AttendanceResponse;
-          return (json.rows ?? []).map((row) => ({ ...row, "Cross-check Date": date }));
-        }),
-      );
+      // Avoid flooding the internal API's bounded SQL connection pool.
+      const rowsByDate: JsonRecord[][] = [];
+      for (const date of periodDates) {
+        const params = new URLSearchParams({ fromDate: date, toDate: date, limit: "2000" });
+        const res = await fetch(`/api/attendance?${params.toString()}`, { cache: "no-store" });
+        if (!res.ok) {
+          const msg = (await res.text()) || `Attendance request failed with ${res.status}`;
+          throw new Error(msg);
+        }
+        const json = (await res.json()) as AttendanceResponse;
+        rowsByDate.push((json.rows ?? []).map((row) => ({ ...row, "Cross-check Date": date })));
+      }
 
       const allRows = rowsByDate.flat();
       const matchedRows = badge ? filterRowsByBadge(allRows, badge) : allRows;
@@ -276,7 +272,7 @@ export default function CrossCheckPage() {
                     }}
                   />
                   <ResultTableView
-                    title={badgeNumber ? `MSSQL Punches - Badge ${badgeNumber}` : "MSSQL Punches"}
+                    title={badgeNumber ? `Attendance Punches - Badge ${badgeNumber}` : "Attendance Punches"}
                     rows={punchRows}
                     columns={punchColumns}
                     loading={punchesLoading}

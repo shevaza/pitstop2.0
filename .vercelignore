@@ -1,0 +1,5 @@
+# Internal-only service, local SQL credentials, and mobile app are not Vercel assets.
+itc-srv-10/
+.data/
+mobile/
+tests/

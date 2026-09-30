@@ -1,0 +1,7 @@
+[
+  {
+    "id": "attendance-default",
+    "name": "Attendance",
+    "query": "SELECT TOP (@limit) E.NAME AS EmployeeName, A.* FROM Attendance A LEFT JOIN Employee E ON A.BadgeNumber = E.BadgeNumber WHERE (@fromDate IS NULL OR A.VerifyTime >= @fromDate) AND (@toDate IS NULL OR A.VerifyTime < DATEADD(day, 1, @toDate)) ORDER BY A.id DESC;"
+  }
+]

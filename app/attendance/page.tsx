@@ -10,7 +10,6 @@ type AttendanceResponse = {
     columns: string[];
     fetchedAt: string;
     limit: number;
-    queryUsed?: string;
     source?: string;
     report?: ReportSummary;
     availableReports?: ReportSummary[];
@@ -85,7 +84,7 @@ export default function AttendancePage() {
               <div>
                 <h1 className="text-2xl font-semibold text-[var(--text)]">Attendance</h1>
                 <p className="text-sm text-[var(--text)]/70">
-                  Pull live attendance data from your configured MSSQL source.
+                  View live attendance reports from the internal attendance service.
                 </p>
               </div>
               <div className="flex flex-wrap md:flex-row items-center gap-2 justify-end md:justify-end md:ml-auto">
@@ -184,12 +183,12 @@ export default function AttendancePage() {
                 </div>
               </div>
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-4 shadow-[var(--shadow-soft)]">
-                <div className="text-xs uppercase tracking-wide text-[var(--text)]/60">Query</div>
+                <div className="text-xs uppercase tracking-wide text-[var(--text)]/60">Report</div>
                 <div className="mt-1 text-base font-semibold text-[var(--text)]">
                   {data?.report?.name || "Attendance"}
                 </div>
                 <div className="mt-1 text-xs text-[var(--text)]/60">
-                  {data?.queryUsed || "Using default attendance query"}
+                  Reports are managed by IT on the internal attendance server.
                 </div>
               </div>
             </div>
@@ -199,7 +198,7 @@ export default function AttendancePage() {
                 <div>
                   <h2 className="text-lg font-semibold text-[var(--text)]">Attendance Records</h2>
                   <p className="text-xs text-[var(--text)]/60">
-                    Data is pulled live from MSSQL; nothing is cached.
+                    Data is retrieved live from the attendance service; nothing is cached.
                   </p>
                 </div>
                 <input
@@ -229,7 +228,7 @@ export default function AttendancePage() {
                     ) : filteredRows.length === 0 ? (
                       <tr>
                         <td className="px-3 py-4 text-[var(--text)]/70" colSpan={(data?.columns ?? []).length || 1}>
-                          No rows found. Check your query or adjust the search filter.
+                          No rows found. Adjust the dates, report, or search filter.
                         </td>
                       </tr>
                     ) : (

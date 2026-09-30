@@ -1,0 +1,12 @@
+{
+    auto_https off
+    default_sni 85.112.75.82
+    admin localhost:2019
+}
+
+# Run Caddy from itc-srv-10. MikroTik maps public TCP 4010 to LAN TCP 4443.
+# Node remains on 127.0.0.1:4010; do not forward directly to Node.
+https://85.112.75.82:4443 {
+    tls ./certs/server.crt ./certs/server.key
+    reverse_proxy 127.0.0.1:4010
+}

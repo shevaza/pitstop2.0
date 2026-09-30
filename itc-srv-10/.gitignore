@@ -1,0 +1,7 @@
+node_modules/
+.env
+config/*.json
+!config/*.example.json
+*.log
+certs/
+caddy.exe

@@ -8,7 +8,8 @@
     "build:vps": "prisma generate && node ./scripts/build-vps.mjs",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test:attendance": "node --test tests/attendance-api.test.mjs && npm --prefix itc-srv-10 test"
   },
   "dependencies": {
     "@azure/msal-node": "^3.8.0",
@@ -18,7 +19,6 @@
     "html-to-image": "^1.11.13",
     "jose": "^6.2.2",
     "jspdf": "^3.0.3",
-    "mssql": "^12.1.1",
     "next": "^16.2.3",
     "next-auth": "^4.24.13",
     "p-limit": "^7.2.0",
@@ -33,7 +33,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/mssql": "^9.1.8",
     "@types/node": "^20",
     "@types/papaparse": "^5.3.16",
     "@types/react": "^19",

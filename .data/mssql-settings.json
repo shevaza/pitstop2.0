@@ -18,7 +18,17 @@
     {
       "id": "06710fbb-46f1-4939-ba44-663f9ae68bff",
       "name": "FirstIN LastOut",
-      "query": "SELECT TOP ({{limit}}) * FROM Attendance ORDER BY [Date] DESC"
+      "query": "SELECT\n    E.Id AS EmployeeId,\n    E.BadgeNumber,\n    E.[NAME] AS EmployeeName,\n    CONVERT(date, A.VerifyTime) AS AttendanceDate,\n    MIN(CASE WHEN A.StatusId = 0 THEN A.VerifyTime END) AS FirstCheckIn,\n    MAX(CASE WHEN A.StatusId = 1 THEN A.VerifyTime END) AS LastCheckOut\nFROM [TimeKeeping].[dbo].[Employee] AS E\nINNER JOIN [TimeKeeping].[dbo].[Attendance] AS A\n    ON A.BadgeNumber = E.BadgeNumber\nWHERE A.VerifyTime >= CAST({{FromDate}} AS date)\n  AND A.VerifyTime < DATEADD(\n        day,\n        1,\n        CAST({{ToDate}} AS date)\n      )\nGROUP BY\n    E.Id,\n    E.BadgeNumber,\n    E.[NAME],\n    CONVERT(date, A.VerifyTime)\nORDER BY\n    AttendanceDate,\n    E.[NAME];"
+    },
+    {
+      "id": "67c06b5e-6e2a-4abe-8c04-847153aef42e",
+      "name": "On Prem",
+      "query": "WITH LatestTransaction AS (\n    SELECT\n        A.*,\n        ROW_NUMBER() OVER (\n            PARTITION BY A.BadgeNumber\n            ORDER BY A.VerifyTime DESC, A.Id DESC\n        ) AS RowNum\n    FROM dbo.Attendance AS A\n    WHERE A.VerifyTime >= CAST(GETDATE() AS date)\n      AND A.VerifyTime < DATEADD(day, 1, CAST(GETDATE() AS date))\n)\nSELECT TOP ({{limit}})\n    E.BadgeNumber,\n    E.NAME AS EmployeeName,\n    L.VerifyTime AS LastTransactionTime,\n    L.Status AS LastTransactionStatus\nFROM LatestTransaction AS L\nLEFT JOIN dbo.Employee AS E\n    ON E.BadgeNumber = L.BadgeNumber\nWHERE L.RowNum = 1\n  AND L.Status = 'Check-In'\nORDER BY L.VerifyTime DESC;"
+    },
+    {
+      "id": "85210dc9-f225-4df6-8881-47d61c016787",
+      "name": "Off Prem",
+      "query": "WITH LatestTransaction AS (\n    SELECT\n        A.*,\n        ROW_NUMBER() OVER (\n            PARTITION BY A.BadgeNumber\n            ORDER BY A.VerifyTime DESC, A.Id DESC\n        ) AS RowNum\n    FROM dbo.Attendance AS A\n    WHERE A.VerifyTime >= CAST(GETDATE() AS date)\n      AND A.VerifyTime < DATEADD(day, 1, CAST(GETDATE() AS date))\n)\nSELECT TOP ({{limit}})\n    E.BadgeNumber,\n    E.NAME AS EmployeeName,\n    L.VerifyTime AS LastTransactionTime,\n    L.Status AS LastTransactionStatus\nFROM LatestTransaction AS L\nLEFT JOIN dbo.Employee AS E\n    ON E.BadgeNumber = L.BadgeNumber\nWHERE L.RowNum = 1\n  AND L.Status = 'Check-Out'\nORDER BY L.VerifyTime DESC;"
     }
   ],
   "encrypt": true,

@@ -44,3 +44,11 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# Internal attendance service and legacy local SQL secrets
+/itc-srv-10/node_modules/
+/itc-srv-10/config/*.json
+!/itc-srv-10/config/*.example.json
+/.data/mssql-settings.json
+!/.env.attendance.example
+!/itc-srv-10/.env.example

@@ -1,0 +1,14 @@
+{
+  "name": "pitstop-attendance-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.16" },
+  "scripts": {
+    "start": "node --env-file=.env src/server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "migrate": "node scripts/migrate-settings.mjs",
+    "diagnose": "node --env-file=.env scripts/diagnose.mjs"
+  },
+  "dependencies": { "mssql": "^12.1.1" }
+}
