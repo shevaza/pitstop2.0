@@ -104,7 +104,8 @@ async function upsertCachedUserBatch(users: DirectoryUser[], syncedAt: string) {
     await supabaseRequest<CachedUserRecord[]>("users", {
         method: "POST",
         query: {
-            on_conflict: "user_principal_name",
+            // Azure IDs are stable when an account's UPN is renamed.
+            on_conflict: "azure_user_id",
             select: "id",
         },
         headers: {
