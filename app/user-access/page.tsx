@@ -181,12 +181,12 @@ export default function UserAccessPage() {
                 </section>
 
                 {error && (
-                    <div className="rounded-xl border border-red-500/40 bg-[color:rgba(255,255,255,0.06)] p-4 text-sm text-red-100">
+                    <div className="rounded-xl border border-[var(--border)]/40 bg-[color:rgba(255,255,255,0.06)] p-4 text-sm text-rose-500">
                         {error}
                     </div>
                 )}
                 {message && (
-                    <div className="rounded-xl border border-emerald-500/40 bg-[color:rgba(16,185,129,0.15)] p-4 text-sm text-emerald-100">
+                    <div className="rounded-xl border border-[var(--border)]/40 bg-[color:rgba(16,185,129,0.15)] p-4 text-sm text-emerald-500">
                         {message}
                     </div>
                 )}
@@ -224,9 +224,9 @@ export default function UserAccessPage() {
                                 <button
                                     key={`${user.id}-${user.userPrincipalName}`}
                                     type="button"
-                                    className={`w-full border-b border-[var(--border)]/70 px-3 py-3 text-left transition-colors hover:bg-[color:rgba(14,3,219,0.14)] ${
+                                    className={`w-full border-b border-[var(--border)]/70 px-3 py-3 text-left transition-colors hover:bg-[color:rgba(18,102,241,0.14)] ${
                                         selectedUser?.userPrincipalName === user.userPrincipalName
-                                            ? "bg-[color:rgba(14,3,219,0.14)]"
+                                            ? "bg-[color:rgba(18,102,241,0.14)]"
                                             : ""
                                     }`}
                                     onClick={() => selectUser(user)}
@@ -294,7 +294,7 @@ export default function UserAccessPage() {
                         </div>
 
                         {allEmployees ? (
-                            <div className="mt-2 text-xs text-amber-200/80">
+                            <div className="mt-2 text-xs text-[var(--text)]/80">
                                 Bulk updates affect active employee accounts only and change only the modules selected below.
                             </div>
                         ) : selectedUser && (

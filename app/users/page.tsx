@@ -375,7 +375,7 @@ export default function UsersPage() {
                         Search
                     </button>
                     <button
-                        className="rounded border border-[var(--border)] bg-[color:rgba(14,3,219,0.2)] px-3 py-2 text-[var(--text)] transition-colors hover:bg-[color:rgba(14,3,219,0.32)] disabled:opacity-50"
+                        className="rounded border border-[var(--border)] bg-[color:rgba(18,102,241,0.2)] px-3 py-2 text-[var(--text)] transition-colors hover:bg-[color:rgba(18,102,241,0.32)] disabled:opacity-50"
                         onClick={handleSync}
                         disabled={!isReady || syncing || !canModifyUsers}
                         title={canModifyUsers ? undefined : "Modify access is required"}
@@ -618,7 +618,7 @@ export default function UsersPage() {
                         </thead>
                         <tbody>
                             {paginatedItems.map((u) => (
-                                <tr key={u.id} className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(14,3,219,0.12)]">
+                                <tr key={u.id} className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(18,102,241,0.12)]">
                                     <td className="p-2">
                                         {canModifyUsers ? (
                                             <Link href={`/users/${encodeURIComponent(u.id)}`} className="text-[var(--text)] hover:text-[var(--primary)] hover:underline">

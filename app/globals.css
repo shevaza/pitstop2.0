@@ -1,49 +1,35 @@
 @import "tailwindcss";
 
-:root {
-  --primary: #0e03db;
-  --background: #010105;
-  --foreground: #f4f5ff;
-  --text: #ffffff;
-  --glass: rgba(255, 255, 255, 0.07);
-  --glass-strong: rgba(255, 255, 255, 0.1);
+:root,
+:root[data-theme="dark"] {
+  --primary: #1266F1;
+  --primary-hover: #0e52c1;
+  --primary-surface: rgba(18, 102, 241, 0.18);
+  --background: #0b1220;
+  --foreground: #e8eef8;
+  --text: #e8eef8;
+  --surface: #151f30;
+  --glass: #151f30;
+  --glass-strong: #1b2940;
   --border: rgba(255, 255, 255, 0.16);
-  --shadow-soft: 0 12px 50px rgba(0, 0, 0, 0.45);
-  --glow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 48px rgba(14, 3, 219, 0.35);
-  --page-background-image: radial-gradient(120% 120% at 15% 20%, rgba(14, 3, 219, 0.22), transparent 46%),
-    radial-gradient(120% 100% at 85% 0%, rgba(14, 3, 219, 0.14), transparent 42%),
-    linear-gradient(145deg, #03030a, #070714 40%, #03030a 100%);
+  --shadow-soft: 0 4px 18px rgba(0, 0, 0, 0.22);
+  --glow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 48px rgba(18, 102, 241, 0.35);
+  --page-background-image: radial-gradient(120% 120% at 15% 20%, rgba(18, 102, 241, 0.16), transparent 46%);
   color-scheme: dark;
 }
 
 :root[data-theme="light"] {
-  --background: #f6f7fb;
-  --foreground: #111827;
-  --text: #172033;
-  --glass: rgba(255, 255, 255, 0.72);
-  --glass-strong: rgba(255, 255, 255, 0.9);
-  --border: rgba(17, 24, 39, 0.14);
-  --shadow-soft: 0 12px 38px rgba(17, 24, 39, 0.12);
-  --glow: 0 0 0 1px rgba(17, 24, 39, 0.06), 0 12px 38px rgba(14, 3, 219, 0.16);
-  --page-background-image: radial-gradient(120% 120% at 15% 20%, rgba(14, 3, 219, 0.1), transparent 48%),
-    radial-gradient(100% 90% at 85% 0%, rgba(80, 120, 255, 0.12), transparent 44%),
-    linear-gradient(145deg, #f7f8fd, #eef1fb 45%, #ffffff 100%);
+  --background: #eef2f8;
+  --foreground: #172338;
+  --text: #172338;
+  --surface: #ffffff;
+  --glass: #ffffff;
+  --glass-strong: #f5f7fb;
+  --border: rgba(0, 0, 0, 0.16);
+  --shadow-soft: 0 3px 12px rgba(23, 35, 56, 0.08);
+  --glow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 12px 38px rgba(18, 102, 241, 0.16);
+  --page-background-image: radial-gradient(120% 120% at 15% 20%, rgba(18, 102, 241, 0.06), transparent 48%);
   color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  --background: #010105;
-  --foreground: #f4f5ff;
-  --text: #ffffff;
-  --glass: rgba(255, 255, 255, 0.07);
-  --glass-strong: rgba(255, 255, 255, 0.1);
-  --border: rgba(255, 255, 255, 0.16);
-  --shadow-soft: 0 12px 50px rgba(0, 0, 0, 0.45);
-  --glow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 48px rgba(14, 3, 219, 0.35);
-  --page-background-image: radial-gradient(120% 120% at 15% 20%, rgba(14, 3, 219, 0.22), transparent 46%),
-    radial-gradient(120% 100% at 85% 0%, rgba(14, 3, 219, 0.14), transparent 42%),
-    linear-gradient(145deg, #03030a, #070714 40%, #03030a 100%);
-  color-scheme: dark;
 }
 
 @theme inline {
@@ -117,4 +103,42 @@ button:active {
 option {
   background-color: var(--background);
   color: var(--text);
+}
+
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+input, select, textarea {
+  accent-color: var(--primary);
+}
+
+::selection {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+/* Dashboard panels use a blue accent edge, like the navigation rail. */
+main :is(section, div).backdrop-blur-2xl {
+  border-top: 3px solid var(--primary);
+  border-radius: 12px;
+}
+header, aside {
+  background: var(--surface);
+}
+aside {
+  border-left: 5px solid var(--primary);
+}
+aside a[aria-current="page"] {
+  background: var(--primary-surface);
+  color: var(--primary);
+  box-shadow: inset 3px 0 var(--primary);
+}
+main table th {
+  background: var(--glass-strong);
+  font-weight: 600;
+}
+main :is(input, select, textarea) {
+  background-color: var(--glass-strong);
 }

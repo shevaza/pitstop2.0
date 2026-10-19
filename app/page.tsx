@@ -54,7 +54,7 @@ export default function Home() {
       <main className="p-6 space-y-6 text-[var(--foreground)]">
 
         {error && (
-          <div className="rounded-xl border border-red-500/40 bg-[color:rgba(255,255,255,0.06)] p-4 text-sm text-red-100 shadow-[var(--shadow-soft)] backdrop-blur-xl">
+          <div className="rounded-xl border border-[var(--border)]/40 bg-[color:rgba(255,255,255,0.06)] p-4 text-sm text-rose-500 shadow-[var(--shadow-soft)] backdrop-blur-xl">
             Failed to load metrics: {error}
           </div>
         )}
@@ -80,21 +80,21 @@ export default function Home() {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={deptTop10} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#e8ebff" }} interval={0} angle={0} height={60} />
-                    <YAxis tick={{ fill: "#e8ebff" }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: "var(--text)" }} interval={0} angle={0} height={60} />
+                    <YAxis tick={{ fill: "var(--text)" }} />
                     <Tooltip
                       contentStyle={{
-                        background: "rgba(3,3,10,0.92)",
-                        border: "1px solid rgba(255,255,255,0.16)",
+                        background: "var(--surface)",
+                        border: "1px solid var(--border)",
                         borderRadius: 12,
-                        color: "#e8ebff",
+                        color: "var(--text)",
                         backdropFilter: "blur(14px)",
                       }}
-                      labelStyle={{ color: "#ffffff" }}
-                      itemStyle={{ color: "#e8ebff" }}
+                      labelStyle={{ color: "var(--text)" }}
+                      itemStyle={{ color: "var(--text)" }}
                     />
-                    <Bar dataKey="count" fill="rgba(100,60,255,0.85)" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="count" fill="rgba(18,102,241,0.85)" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -138,7 +138,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {(data?.departments ?? []).map((d) => (
-                  <tr key={d.name} className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(14,3,219,0.12)]">
+                  <tr key={d.name} className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(18,102,241,0.12)]">
                     <td className="p-2">{d.name}</td>
                     <td className="p-2 text-right">{d.count}</td>
                     <td className="p-2 text-right">{d.active}</td>

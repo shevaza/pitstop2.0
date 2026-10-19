@@ -460,7 +460,7 @@ export default function AssetEditPage() {
                                     <button
                                         key={`${user.id}-${user.userPrincipalName}`}
                                         type="button"
-                                        className="w-full border-b border-[var(--border)]/70 px-3 py-2 text-left text-sm text-[var(--text)] transition-colors hover:bg-[color:rgba(14,3,219,0.14)]"
+                                        className="w-full border-b border-[var(--border)]/70 px-3 py-2 text-left text-sm text-[var(--text)] transition-colors hover:bg-[color:rgba(18,102,241,0.14)]"
                                         onClick={() => {
                                             setSelectedUser(user);
                                             setUserSearch(user.displayName ?? user.userPrincipalName);
@@ -492,7 +492,7 @@ export default function AssetEditPage() {
                                 Update asset details, reassign the owner, or delete the record entirely.
                             </div>
                             <button
-                                className="rounded border border-[var(--border)] bg-[color:rgba(14,3,219,0.24)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[color:rgba(14,3,219,0.36)] disabled:opacity-50"
+                                className="rounded border border-[var(--border)] bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--primary-hover)] disabled:opacity-50"
                                 disabled={saving || deleting}
                             >
                                 {saving ? "Saving..." : "Save Changes"}
@@ -522,7 +522,7 @@ export default function AssetEditPage() {
                                             {log.actor_upn} | {new Date(log.created_at).toLocaleString()}
                                         </div>
                                     </div>
-                                    <span className="rounded-full bg-[color:rgba(14,3,219,0.2)] px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text)]">
+                                    <span className="rounded-full bg-[color:rgba(18,102,241,0.2)] px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text)]">
                                         {log.action}
                                     </span>
                                 </div>

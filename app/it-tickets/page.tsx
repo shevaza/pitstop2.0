@@ -49,7 +49,7 @@ function statusTone(status: string) {
         case "closed":
             return "bg-[color:rgba(52,211,153,0.18)]";
         case "in-progress":
-            return "bg-[color:rgba(59,130,246,0.18)]";
+            return "bg-[color:rgba(18,102,241,0.18)]";
         case "waiting-user":
             return "bg-[color:rgba(251,191,36,0.2)]";
         default:
@@ -264,7 +264,7 @@ export default function ItTicketsPage() {
                                 <AttachmentGallery attachments={ticketAttachments} />
                             </label>
                             <button
-                                className="w-full rounded border border-[var(--border)] bg-[color:rgba(14,3,219,0.24)] px-4 py-2 text-sm font-medium text-[var(--text)] disabled:opacity-50"
+                                className="w-full rounded border border-[var(--border)] bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                                 disabled={saving}
                             >
                                 {saving ? "Saving..." : "Submit Ticket"}

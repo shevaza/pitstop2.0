@@ -121,13 +121,13 @@ export default function Home() {
             <button className="px-4 py-2 border border-[var(--border)] bg-[var(--glass)] rounded text-sm font-semibold text-[var(--text)] shadow-[var(--shadow-soft)] hover:bg-[var(--glass-strong)] cursor-pointer disabled:opacity-60" onClick={downloadTemplate} disabled={templateLoading}>
               {templateLoading ? "Preparing..." : "Download template (first 10 directory users)"}
             </button>
-            {templateError && <span className="text-sm text-red-600">Template: {templateError}</span>}
+            {templateError && <span className="text-sm text-rose-500">Template: {templateError}</span>}
           </div>
-          <div className="text-sm text-gray-600">Expected columns: UserPrincipalName, DisplayName, GivenName, Surname, JobTitle, Department, OfficeLocation, MobilePhone, EmployeeId, EmployeeType, UsageLocation, ManagerUPN, Groups(semi;colon;list), Licenses(comma,list)</div>
+          <div className="text-sm text-[var(--text)]">Expected columns: UserPrincipalName, DisplayName, GivenName, Surname, JobTitle, Department, OfficeLocation, MobilePhone, EmployeeId, EmployeeType, UsageLocation, ManagerUPN, Groups(semi;colon;list), Licenses(comma,list)</div>
           <button className="px-4 py-2 bg-white text-black rounded disabled:opacity-60" onClick={runPreflight} disabled={!rows.length || preflightLoading}>
             {preflightLoading ? "Checking..." : "Preflight"}
           </button>
-          {preflightError && <div className="text-sm text-red-600">Preflight failed: {preflightError}</div>}
+          {preflightError && <div className="text-sm text-rose-500">Preflight failed: {preflightError}</div>}
         </section>
 
         {preflight && (
@@ -140,8 +140,8 @@ export default function Home() {
                   {preflight.items.slice(0, 50).map((it: any, i: number) => (
                     <tr key={i} className="border-t">
                       <td className="p-2">{it.upn}</td>
-                      <td className="p-2">{(it.changes || []).map((c: any, j: number) => <div key={j} className="text-green-700">{c.field}{c.values ? `: ${c.values.join(",")}` : ""}</div>)}</td>
-                      <td className="p-2">{(it.errors || []).map((e: any, j: number) => <div key={j} className="text-red-600">{e}</div>)}</td>
+                      <td className="p-2">{(it.changes || []).map((c: any, j: number) => <div key={j} className="text-emerald-500">{c.field}{c.values ? `: ${c.values.join(",")}` : ""}</div>)}</td>
+                      <td className="p-2">{(it.errors || []).map((e: any, j: number) => <div key={j} className="text-rose-500">{e}</div>)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -161,7 +161,7 @@ export default function Home() {
                 {applyLoading ? "Applying..." : "Apply"}
               </button>
             </div>
-            {applyError && <div className="text-sm text-red-600">Apply failed: {applyError}</div>}
+            {applyError && <div className="text-sm text-rose-500">Apply failed: {applyError}</div>}
           </section>
         )}
 
@@ -177,7 +177,7 @@ export default function Home() {
                       <td className="p-2">{r.upn}</td>
                       <td className="p-2">{r.status}</td>
                       <td className="p-2">{(r.details?.ops || []).map((o: any, j: number) => <div key={j}>{o.type}</div>)}
-                        {r.details?.error && <div className="text-red-600">{r.details.error}</div>}
+                        {r.details?.error && <div className="text-rose-500">{r.details.error}</div>}
                       </td>
                     </tr>
                   ))}

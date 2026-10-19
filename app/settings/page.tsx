@@ -30,7 +30,7 @@ export default function SettingsPage() {
             <div className="space-y-6 p-4 md:p-6">
                 <h1 className="text-2xl font-semibold text-[var(--text)]">Settings</h1>
                 <p className="text-sm text-[var(--text)]/70">Attendance connection and available reports.</p>
-                {error && <div role="alert" className="rounded-xl border border-red-500/40 p-4 text-sm text-red-100">{error}</div>}
+                {error && <div role="alert" className="rounded-xl border border-[var(--border)]/40 p-4 text-sm text-rose-500">{error}</div>}
                 <div className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-4 text-[var(--text)]">
                     <h2 className="text-lg font-semibold">Attendance service</h2>
                     <p role="status">{loading ? "Checking connection…" : settings?.connected ? "Connected" : "Not connected"}</p>

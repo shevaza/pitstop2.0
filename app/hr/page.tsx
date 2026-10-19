@@ -40,7 +40,7 @@ type Holiday = {
 const leaveBalances: LeaveBalance[] = [
     { label: "Annual Leave", days: 14, tone: "bg-[color:rgba(52,211,153,0.18)]" },
     { label: "Sick Leave", days: 6, tone: "bg-[color:rgba(251,191,36,0.18)]" },
-    { label: "Personal Leave", days: 3, tone: "bg-[color:rgba(96,165,250,0.18)]" },
+    { label: "Personal Leave", days: 3, tone: "bg-[color:rgba(18,102,241,0.18)]" },
 ];
 
 const leaveCalendarItems: LeaveCalendarItem[] = [
@@ -120,7 +120,7 @@ export default function HrPage() {
                                 <p className="text-xs text-[var(--text)]/60">{monthLabel}</p>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-[var(--text)]/65">
-                                <span className="rounded-full bg-[color:rgba(96,165,250,0.18)] px-2 py-1">Your leave</span>
+                                <span className="rounded-full bg-[color:rgba(18,102,241,0.18)] px-2 py-1">Your leave</span>
                                 <span className="rounded-full bg-[color:rgba(251,191,36,0.18)] px-2 py-1">Holiday</span>
                             </div>
                         </div>
@@ -148,7 +148,7 @@ export default function HrPage() {
                                         <span
                                             className={`text-sm font-semibold ${
                                                 day.isToday
-                                                    ? "rounded-full bg-[color:rgba(14,3,219,0.22)] px-2 py-0.5 text-[var(--text)]"
+                                                    ? "rounded-full bg-[var(--primary)] px-2 py-0.5 text-white"
                                                     : day.inCurrentMonth
                                                         ? "text-[var(--text)]"
                                                         : "text-[var(--text)]/35"
@@ -169,7 +169,7 @@ export default function HrPage() {
                                                 key={`${day.dateKey}-${entry.label}`}
                                                 className={`rounded-lg px-2 py-1 text-[11px] leading-tight text-[var(--text)] ${
                                                     entry.type === "leave"
-                                                        ? "bg-[color:rgba(96,165,250,0.18)]"
+                                                        ? "bg-[color:rgba(18,102,241,0.18)]"
                                                         : "bg-[color:rgba(251,191,36,0.18)]"
                                                 }`}
                                             >
@@ -250,7 +250,7 @@ export default function HrPage() {
                                 {upcomingHolidays.map((holiday) => (
                                     <tr
                                         key={holiday.id}
-                                        className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(14,3,219,0.12)]"
+                                        className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(18,102,241,0.12)]"
                                     >
                                         <td className="px-3 py-2">{holiday.name}</td>
                                         <td className="px-3 py-2">{holiday.date}</td>

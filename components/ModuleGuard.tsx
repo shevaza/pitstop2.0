@@ -56,7 +56,7 @@ export default function ModuleGuard({ moduleKey, requiredLevel = "read", childre
                 children
             ) : (
                 <main className="p-6">
-                    <div className="rounded-2xl border border-red-500/30 bg-[color:rgba(255,255,255,0.06)] p-6 text-sm text-[var(--text)]">
+                    <div className="rounded-2xl border border-[var(--border)]/30 bg-[color:rgba(255,255,255,0.06)] p-6 text-sm text-[var(--text)]">
                         You do not have access to this module.
                     </div>
                 </main>

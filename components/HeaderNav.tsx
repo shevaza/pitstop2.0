@@ -1,11 +1,13 @@
 "use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { appModules, getDefaultModuleAccess, type AppModuleKey } from "@/lib/modules";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 
 export default function HeaderNav() {
+  const pathname = usePathname();
   const { status, data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [failedPhotoSrc, setFailedPhotoSrc] = useState<string | null>(null);
@@ -192,7 +194,8 @@ export default function HeaderNav() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`block rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)] ${
+                      aria-current={pathname === item.href ? "page" : undefined}
+                      className={`block rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)] ${
                         groupIndex === 3 && itemIndex > 0 ? "ml-3 text-[var(--text)]/80" : ""
                       }`}
                       onClick={() => setIsOpen(false)}
@@ -207,7 +210,7 @@ export default function HeaderNav() {
                 <div className="border-t border-[var(--border)] pt-3 mt-3">
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)]"
+                  className="flex w-full items-center justify-between rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
                   onClick={() => setHrOpen((prev) => !prev)}
                   aria-expanded={hrOpen}
                 >
@@ -219,7 +222,7 @@ export default function HeaderNav() {
                   <div className="mt-1 space-y-1">
                     <Link
                       href="/hr"
-                      className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/90 transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)]"
+                      className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/90 transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
                       onClick={() => setIsOpen(false)}
                     >
                       HR Overview
@@ -227,7 +230,7 @@ export default function HeaderNav() {
                     {moduleAccess.attendance && (
                       <Link
                       href="/attendance"
-                      className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/80 transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)]"
+                      className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/80 transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
                       onClick={() => setIsOpen(false)}
                     >
                       Attendance
@@ -242,7 +245,7 @@ export default function HeaderNav() {
                 <div className="border-t border-[var(--border)] pt-3 mt-3">
                 <Link
                   href="/assets"
-                  className="block rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)]"
+                  className="block rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
                   onClick={() => setIsOpen(false)}
                 >
                   Assets Management
@@ -254,7 +257,7 @@ export default function HeaderNav() {
                 <div className="border-t border-[var(--border)] pt-3 mt-3">
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)]"
+                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
                     onClick={() => setTicketsOpen((prev) => !prev)}
                     aria-expanded={ticketsOpen}
                   >
@@ -266,7 +269,7 @@ export default function HeaderNav() {
                       {moduleAccess["it-tickets"] && (
                         <Link
                           href="/it-tickets"
-                          className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/90 transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)]"
+                          className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/90 transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
                           onClick={() => setIsOpen(false)}
                         >
                           My Tickets
@@ -275,7 +278,7 @@ export default function HeaderNav() {
                       {moduleAccess["it-tickets-admin"] && (
                         <Link
                           href="/it-tickets/admin"
-                          className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/80 transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)]"
+                          className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/80 transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
                           onClick={() => setIsOpen(false)}
                         >
                           Admin Queue
@@ -295,7 +298,8 @@ export default function HeaderNav() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="block rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(14,3,219,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(14,3,219,0.15)]"
+                      aria-current={pathname === item.href ? "page" : undefined}
+                      className="block rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
                       onClick={() => setIsOpen(false)}
                     >
                       {item.label}

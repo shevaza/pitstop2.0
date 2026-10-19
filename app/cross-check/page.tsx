@@ -239,7 +239,7 @@ export default function CrossCheckPage() {
         </section>
 
         {error && (
-          <div className="rounded-xl border border-red-500/40 bg-[color:rgba(255,255,255,0.06)] p-4 text-sm text-red-100 shadow-[var(--shadow-soft)]">
+          <div className="rounded-xl border border-[var(--border)]/40 bg-[color:rgba(255,255,255,0.06)] p-4 text-sm text-rose-500 shadow-[var(--shadow-soft)]">
             {error}
           </div>
         )}
@@ -350,7 +350,7 @@ function ResultTableView({
               rows.map((row, rowIndex) => (
                 <tr
                   key={rowIndex}
-                  className={`border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(14,3,219,0.12)] ${rowClassName?.(row) ?? ""}`}
+                  className={`border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(18,102,241,0.12)] ${rowClassName?.(row) ?? ""}`}
                 >
                   {columns.map((column) => (
                     <td key={column} className="px-3 py-2 align-top">
@@ -481,10 +481,10 @@ function getPunchDate(row: JsonRecord) {
 
 function comparisonRowClass(kind: unknown) {
   if (kind === "conflict") {
-    return "border-l-4 border-l-red-600 bg-[color:rgba(239,68,68,0.24)] text-[var(--text)] hover:bg-[color:rgba(239,68,68,0.32)]!";
+    return "border-l-4 border-l-[var(--primary)] bg-[color:rgba(239,68,68,0.24)] text-[var(--text)] hover:bg-[color:rgba(239,68,68,0.32)]!";
   }
   if (kind === "missing") {
-    return "border-l-4 border-l-amber-600 bg-[color:rgba(245,158,11,0.28)] text-[var(--text)] hover:bg-[color:rgba(245,158,11,0.36)]!";
+    return "border-l-4 border-l-[var(--primary)] bg-[color:rgba(245,158,11,0.28)] text-[var(--text)] hover:bg-[color:rgba(245,158,11,0.36)]!";
   }
   return "";
 }

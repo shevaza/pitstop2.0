@@ -87,19 +87,19 @@ export default function MultiSelect({
             }} multiple>
                 <div className="relative">
                     {/* Input / button */}
-                    <div className="relative w-full cursor-text rounded-md border border-[var(--border)] bg-[var(--glass)] pl-2 pr-10 py-1 focus-within:ring-2 focus-within:white">
+                    <div className="relative w-full cursor-text rounded-md border border-[var(--border)] bg-[var(--glass)] pl-2 pr-10 py-1 focus-within:ring-2 focus-within:ring-[var(--primary)]">
                         {/* Selected tags */}
                         <div className="flex flex-wrap gap-1">
                             {value.map(v => (
-                                <span key={v.id} className="inline-flex items-center gap-1 rounded bg-white text-blue-800 px-2 py-0.5 text-xs">
+                                <span key={v.id} className="inline-flex items-center gap-1 rounded bg-[var(--surface)] text-[var(--primary)] px-2 py-0.5 text-xs">
                                     {v.label}
-                                    <button title="button" type="button" onClick={() => removeOption(v.id)} className="hover:text-blue-900">
+                                    <button title="button" type="button" onClick={() => removeOption(v.id)} className="hover:text-[var(--primary)]">
                                         <XMarkIcon className="h-4 w-4" />
                                     </button>
                                 </span>
                             ))}
                             <Combobox.Input
-                                className="ml-1 flex-1 outline-none text-sm placeholder-gray-400"
+                                className="ml-1 flex-1 outline-none text-sm placeholder:text-[var(--text)]/50"
                                 onChange={(e) => setQuery(e.target.value)}
                                 value={query}
                                 placeholder={value.length ? "" : placeholder}
@@ -109,7 +109,7 @@ export default function MultiSelect({
                         </div>
 
                         <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2" disabled={disabled}>
-                            <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+                            <ChevronUpDownIcon className="h-5 w-5 text-[var(--text)]" />
                         </Combobox.Button>
                     </div>
 
@@ -120,13 +120,13 @@ export default function MultiSelect({
                         leaveTo="opacity-0"
                         afterLeave={() => setQuery(q => q)}
                     >
-                        <Combobox.Options className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg focus:outline-none">
+                        <Combobox.Options className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg focus:outline-none">
                             {loading && (
-                                <div className="px-3 py-2 text-sm text-gray-500">Loading…</div>
+                                <div className="px-3 py-2 text-sm text-[var(--text)]">Loading…</div>
                             )}
 
                             {!loading && filtered.length === 0 && !createCandidate && (
-                                <div className="px-3 py-2 text-sm text-gray-500">No results</div>
+                                <div className="px-3 py-2 text-sm text-[var(--text)]">No results</div>
                             )}
 
                             {/* render options */}
@@ -135,13 +135,13 @@ export default function MultiSelect({
                                     key={o.id}
                                     value={o}
                                     className={({ active }) =>
-                                        `flex items-center justify-between cursor-pointer px-3 py-2 text-sm ${active ? "bg-blue-900" : "bg-black"
+                                        `flex items-center justify-between cursor-pointer px-3 py-2 text-sm text-[var(--text)] ${active ? "bg-[var(--primary-surface)]" : "bg-[var(--surface)]"
                                         }`
                                     }
                                     onClick={() => addOption(o)}
                                 >
                                     <span>{o.label}</span>
-                                    {inValue(o) && <CheckIcon className="h-4 w-4 text-blue-900" />}
+                                    {inValue(o) && <CheckIcon className="h-4 w-4 text-[var(--primary)]" />}
                                 </Combobox.Option>
                             ))}
 
@@ -149,10 +149,10 @@ export default function MultiSelect({
                             {createCandidate && (
                                 <Combobox.Option
                                     value={createCandidate}
-                                    className="flex items-center gap-2 cursor-pointer px-3 py-2 text-sm bg-green-50"
+                                    className="flex items-center gap-2 cursor-pointer px-3 py-2 text-sm bg-[var(--primary-surface)]"
                                     onClick={() => addOption(createCandidate)}
                                 >
-                                    <PlusIcon className="h-4 w-4 text-green-700" />
+                                    <PlusIcon className="h-4 w-4 text-emerald-500" />
                                     Create “{createCandidate.label}”
                                 </Combobox.Option>
                             )}

@@ -100,7 +100,7 @@ export default function AttendancePage() {
                     }}
                   >
                     {(reports.length ? reports : data?.availableReports ?? []).map((report) => (
-                      <option key={report.id} value={report.id} className="bg-gray-900">
+                      <option key={report.id} value={report.id} className="bg-[var(--background)]">
                         {report.name}
                       </option>
                     ))}
@@ -158,7 +158,7 @@ export default function AttendancePage() {
             </div>
 
             {error && (
-              <div className="rounded-xl border border-red-500/40 bg-[color:rgba(255,255,255,0.06)] p-4 text-sm text-red-100 shadow-[var(--shadow-soft)]">
+              <div className="rounded-xl border border-[var(--border)]/40 bg-[color:rgba(255,255,255,0.06)] p-4 text-sm text-rose-500 shadow-[var(--shadow-soft)]">
                 {error}
               </div>
             )}
@@ -235,7 +235,7 @@ export default function AttendancePage() {
                       filteredRows.map((row, idx) => (
                         <tr
                           key={idx}
-                          className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(14,3,219,0.12)]"
+                          className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(18,102,241,0.12)]"
                         >
                           {(data?.columns ?? []).map((col) => (
                             <td key={col} className="px-3 py-2 align-top">

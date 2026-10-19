@@ -234,7 +234,7 @@ export default function ItTicketsAdminPage() {
                                     key={option}
                                     type="button"
                                     onClick={() => setFilter(option)}
-                                    className={`rounded border border-[var(--border)] px-3 py-2 text-xs text-[var(--text)] ${filter === option ? "bg-[color:rgba(14,3,219,0.28)]" : "bg-[var(--glass)]"}`}
+                                    className={`rounded border border-[var(--border)] px-3 py-2 text-xs text-[var(--text)] ${filter === option ? "bg-[color:rgba(18,102,241,0.28)]" : "bg-[var(--glass)]"}`}
                                 >
                                     {option}
                                 </button>
@@ -246,7 +246,7 @@ export default function ItTicketsAdminPage() {
                                     key={ticket.id}
                                     type="button"
                                     onClick={() => setSelectedId(ticket.id)}
-                                    className={`w-full rounded-xl border border-[var(--border)] p-3 text-left text-sm transition-colors ${selectedTicket?.id === ticket.id ? "bg-[color:rgba(14,3,219,0.18)]" : "bg-[var(--glass-strong)]"}`}
+                                    className={`w-full rounded-xl border border-[var(--border)] p-3 text-left text-sm transition-colors ${selectedTicket?.id === ticket.id ? "bg-[color:rgba(18,102,241,0.18)]" : "bg-[var(--glass-strong)]"}`}
                                 >
                                     <div className="font-medium text-[var(--text)]">{ticket.title}</div>
                                     <div className="mt-1 text-xs text-[var(--text)]/60">
@@ -328,7 +328,7 @@ export default function ItTicketsAdminPage() {
                                         type="button"
                                         onClick={() => void save()}
                                         disabled={saving}
-                                        className="rounded border border-[var(--border)] bg-[color:rgba(14,3,219,0.24)] px-4 py-2 text-sm font-medium text-[var(--text)] disabled:opacity-50"
+                                        className="rounded border border-[var(--border)] bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                                     >
                                         {saving ? "Saving..." : "Save Ticket"}
                                     </button>

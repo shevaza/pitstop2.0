@@ -354,7 +354,7 @@ export default function UserDetailPage() {
                                                 <Combobox.Option
                                                     value={null}
                                                     className={({ active }) =>
-                                                        `cursor-pointer select-none px-3 py-2 ${active ? "bg-[color:rgba(14,3,219,0.14)]" : ""}`
+                                                        `cursor-pointer select-none px-3 py-2 ${active ? "bg-[color:rgba(18,102,241,0.14)]" : ""}`
                                                     }
                                                 >
                                                     Clear manager
@@ -372,7 +372,7 @@ export default function UserDetailPage() {
                                                         key={item.id}
                                                         value={item}
                                                         className={({ active }) =>
-                                                            `flex cursor-pointer items-center justify-between px-3 py-2 ${active ? "bg-[color:rgba(14,3,219,0.14)]" : ""}`
+                                                            `flex cursor-pointer items-center justify-between px-3 py-2 ${active ? "bg-[color:rgba(18,102,241,0.14)]" : ""}`
                                                         }
                                                     >
                                                         <span>

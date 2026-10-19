@@ -93,7 +93,7 @@ export default function OrgChartClient() {
     const expandAll = () => setCollapsed(new Set());
 
     const Card = ({ n, isCollapsed }: { n: Node; isCollapsed: boolean }) => (
-        <div className="relative mx-auto rounded-xl border bg-white shadow-sm px-3 py-2 text-center min-w-48 max-w-100">
+        <div className="relative mx-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm px-3 py-2 text-center min-w-48 max-w-100">
             <img
                 src={`/api/users/${encodeURIComponent(n.id)}/photo`}
                 alt=""
@@ -102,17 +102,17 @@ export default function OrgChartClient() {
             />
             <Link
                 href={`/users/${encodeURIComponent(n.id)}`}
-                className="text-sm font-semibold text-blue-600! hover:underline"
+                className="text-sm font-semibold text-[var(--primary)]! hover:underline"
             >
                 {n.displayName}
             </Link>
-            <div className="text-xs text-gray-600">{n.jobTitle || "—"}</div>
-            <div className="text-[10px] text-gray-500">{n.department || "—"}</div>
-            <div className="mt-2 text-[10px] text-gray-400">{n.upn}</div>
+            <div className="text-xs text-[var(--text)]">{n.jobTitle || "—"}</div>
+            <div className="text-[10px] text-[var(--text)]">{n.department || "—"}</div>
+            <div className="mt-2 text-[10px] text-[var(--text)]">{n.upn}</div>
             {n.children.length > 0 && (
                 <button
                     type="button"
-                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-blue-600 text-white text-xs shadow hover:bg-blue-800 hover:text-white"
+                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-[var(--primary)] text-white text-xs shadow hover:bg-[var(--primary-hover)] hover:text-white"
                     onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -267,26 +267,26 @@ export default function OrgChartClient() {
     return (
         <main className="p-6 space-y-4">
             <div className="flex items-center justify-between gap-3">
-                <h1 className="text-2xl font-semibold text-white">Organization Chart</h1>
+                <h1 className="text-2xl font-semibold text-[var(--text)]">Organization Chart</h1>
                 <div className="flex items-center gap-2 print:hidden">
                     <input
                         placeholder="Filter by name / title / dept"
-                        className="border rounded px-2 py-1 w-72 border-white text-white"
+                        className="border rounded px-2 py-1 w-72 border-[var(--border)] text-[var(--text)]"
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
                     />
                     <div className="flex items-center gap-1">
                         <button
                             type="button"
-                            className="px-2 py-1 rounded bg-black text-white hover:bg-white hover:text-black"
+                            className="px-2 py-1 rounded bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--primary-surface)]"
                             onClick={() => setZoom((z) => Math.max(0.5, Number((z - 0.1).toFixed(2))))}
                         >
                             −
                         </button>
-                        <span className="px-2 text-sm text-white">{Math.round(zoom * 100)}%</span>
+                        <span className="px-2 text-sm text-[var(--text)]">{Math.round(zoom * 100)}%</span>
                         <button
                             type="button"
-                            className="px-2 py-1 rounded bg-black text-white hover:bg-white hover:text-black"
+                            className="px-2 py-1 rounded bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--primary-surface)]"
                             onClick={() => setZoom((z) => Math.min(2, Number((z + 0.1).toFixed(2))))}
                         >
                             +
@@ -295,21 +295,21 @@ export default function OrgChartClient() {
                     <button
                         onClick={exportPdf}
                         disabled={exporting}
-                        className="px-3 py-2 rounded bg-black text-white hover:bg-white hover:text-black disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-3 py-2 rounded bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--primary-surface)] disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {exporting ? "Exporting…" : "Export PDF"}
                     </button>
                     <button
                         type="button"
                         onClick={expandAll}
-                        className="px-3 py-2 rounded bg-black text-white hover:bg-white hover:text-black"
+                        className="px-3 py-2 rounded bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--primary-surface)]"
                     >
                         Expand All
                     </button>
                     <button
                         type="button"
                         onClick={collapseAll}
-                        className="px-3 py-2 rounded bg-black text-white hover:bg-white hover:text-black"
+                        className="px-3 py-2 rounded bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--primary-surface)]"
                     >
                         Collapse All
                     </button>
@@ -319,7 +319,7 @@ export default function OrgChartClient() {
             {loading && <div>Loading…</div>}
 
             {!loading && forest.length === 0 && (
-                <div className="text-gray-500">No org data. Ensure users have managers set.</div>
+                <div className="text-[var(--text)]">No org data. Ensure users have managers set.</div>
             )}
 
             {/* Chart container (this is what we export/print) */}
@@ -343,7 +343,7 @@ export default function OrgChartClient() {
                                     className={`org-tree-root ${rootCollapsed ? "collapsed" : "expanded"} overflow-auto`}
                                 >
                                     <Tree
-                                        lineColor="#D1D5DB"      // gray-300
+                                        lineColor="var(--border)"
                                         lineWidth={"2px"}
                                         label={<Card n={root} isCollapsed={rootCollapsed} />}
                                     >

@@ -105,7 +105,7 @@ function statusTone(status: string) {
         case "active":
             return "bg-[color:rgba(52,211,153,0.18)]";
         case "in-stock":
-            return "bg-[color:rgba(59,130,246,0.18)]";
+            return "bg-[color:rgba(18,102,241,0.18)]";
         case "repair":
             return "bg-[color:rgba(251,191,36,0.2)]";
         case "retired":
@@ -384,7 +384,7 @@ export default function AssetsPage() {
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <button
-                                className="rounded border border-[var(--border)] bg-[color:rgba(14,3,219,0.22)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[color:rgba(14,3,219,0.35)]"
+                                className="rounded border border-[var(--border)] bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--primary-hover)]"
                                 onClick={() => {
                                     setMessage(null);
                                     setForm({ ...initialForm, assetGroup: allowedAssetGroups[0] ?? assetGroups[0] });
@@ -462,7 +462,7 @@ export default function AssetsPage() {
                             {dashboard.types.slice(0, 5).map((entry) => (
                                 <div key={entry.label} className="flex items-center justify-between rounded-xl border border-[var(--border)]/70 bg-[var(--glass-strong)] px-3 py-2 text-sm text-[var(--text)]/80">
                                     <span>{entry.label}</span>
-                                    <span className="rounded-full bg-[color:rgba(14,3,219,0.25)] px-2 py-1 text-xs font-semibold text-[var(--text)]">
+                                    <span className="rounded-full bg-[color:rgba(18,102,241,0.25)] px-2 py-1 text-xs font-semibold text-[var(--text)]">
                                         {entry.count}
                                     </span>
                                 </div>
@@ -591,7 +591,7 @@ export default function AssetsPage() {
                                 {paginatedAssets.map((asset) => (
                                     <tr
                                         key={asset.id}
-                                        className="cursor-pointer border-t border-[var(--border)]/80 align-top transition-colors hover:bg-[color:rgba(14,3,219,0.12)]"
+                                        className="cursor-pointer border-t border-[var(--border)]/80 align-top transition-colors hover:bg-[color:rgba(18,102,241,0.12)]"
                                         onClick={() => router.push(`/assets/${encodeURIComponent(asset.id)}`)}
                                         onKeyDown={(event) => {
                                             if (event.key === "Enter" || event.key === " ") {
@@ -683,8 +683,8 @@ export default function AssetsPage() {
                 </section>
 
                 {isCreateOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:rgba(3,3,10,0.72)] p-4 backdrop-blur-sm">
-                        <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-3xl border border-[var(--border)] bg-[color:rgba(7,7,20,0.95)] p-6 shadow-[var(--glow)]">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:rgba(0,0,0,0.72)] p-4 backdrop-blur-sm">
+                        <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--glow)]">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
                                     <h2 className="text-2xl font-semibold text-[var(--text)]">Create Asset</h2>
@@ -859,7 +859,7 @@ export default function AssetsPage() {
                                             <button
                                                 key={`${user.id}-${user.userPrincipalName}`}
                                                 type="button"
-                                                className="w-full border-b border-[var(--border)]/70 px-3 py-2 text-left text-sm text-[var(--text)] transition-colors hover:bg-[color:rgba(14,3,219,0.14)]"
+                                                className="w-full border-b border-[var(--border)]/70 px-3 py-2 text-left text-sm text-[var(--text)] transition-colors hover:bg-[color:rgba(18,102,241,0.14)]"
                                                 onClick={() => {
                                                     setSelectedUser(user);
                                                     setUserSearch(user.displayName ?? user.userPrincipalName);
@@ -900,7 +900,7 @@ export default function AssetsPage() {
                                             Cancel
                                         </button>
                                         <button
-                                            className="rounded border border-[var(--border)] bg-[color:rgba(14,3,219,0.24)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[color:rgba(14,3,219,0.36)] disabled:opacity-50"
+                                            className="rounded border border-[var(--border)] bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--primary-hover)] disabled:opacity-50"
                                             disabled={saving}
                                         >
                                             {saving ? "Saving..." : "Create Asset"}
