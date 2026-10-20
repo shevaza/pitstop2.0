@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import { fetchCrossCheck } from "@/lib/cross-check-client";
 import ModuleGuard from "@/components/ModuleGuard";
 import Link from "next/link";
@@ -337,7 +338,7 @@ function ResultTableView({
             {loading ? (
               <tr>
                 <td className="px-3 py-4 text-[var(--text)]/70" colSpan={columns.length || 1}>
-                  Loading...
+                  <LoadingState compact />
                 </td>
               </tr>
             ) : rows.length === 0 ? (

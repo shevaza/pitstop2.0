@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import PolicyNotifications from "@/components/PolicyNotifications";
 import { appModules, getDefaultModuleAccess, type AppModuleKey } from "@/lib/modules";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
@@ -11,8 +12,6 @@ export default function HeaderNav() {
   const { status, data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [failedPhotoSrc, setFailedPhotoSrc] = useState<string | null>(null);
-  const [hrOpen, setHrOpen] = useState(true);
-  const [ticketsOpen, setTicketsOpen] = useState(true);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof document === "undefined") return "dark";
     return document.documentElement.dataset.theme === "light" ? "light" : "dark";
@@ -50,18 +49,41 @@ export default function HeaderNav() {
     setTheme(nextTheme);
   };
 
-  const navGroups = useMemo(
-    () => [
-      appModules.filter((module) => module.key === "dashboard" && moduleAccess[module.key]),
-      appModules.filter((module) =>
-        ["users", "bulk", "orgchart"].includes(module.key) && moduleAccess[module.key],
-      ),
-      appModules.filter((module) =>
-        ["user-access", "settings"].includes(module.key) && moduleAccess[module.key],
-      ),
-    ].filter((group) => group.length > 0),
-    [moduleAccess],
-  );
+  const navGroups = useMemo(() => [
+    { label: "Overview", keys: ["dashboard"] },
+    { label: "People & Directory", keys: ["users", "bulk", "orgchart"] },
+    { label: "Human Resources", keys: ["hr", "attendance", "policies"] },
+    { label: "IT & Operations", keys: ["assets", "it-tickets", "it-tickets-admin"] },
+    { label: "Administration", keys: ["user-access", "settings"] },
+  ].map((group) => ({
+    ...group,
+    items: group.keys.flatMap((key) => appModules.filter((item) => item.key === key && moduleAccess[item.key])),
+  })).filter((group) => group.items.length > 0), [moduleAccess]);
+
+  const activeHref = appModules
+    .filter((item) => item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const mobile = window.matchMedia("(max-width: 767px)");
+    const previousOverflow = document.body.style.overflow;
+    const updateScroll = () => { document.body.style.overflow = mobile.matches ? "hidden" : previousOverflow; };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        document.getElementById("navigation-toggle")?.focus();
+      }
+    };
+    updateScroll();
+    mobile.addEventListener("change", updateScroll);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      mobile.removeEventListener("change", updateScroll);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isOpen]);
   const userName = useMemo(
     () =>
       session?.user?.name ||
@@ -140,6 +162,7 @@ export default function HeaderNav() {
           />
         </div>
         <div className="flex items-center gap-4">
+          {status === "authenticated" && moduleAccess.policies && <PolicyNotifications />}
           {status === "authenticated" && (
             <div className="hidden md:flex items-center gap-3">
               <div className="rounded-xl border border-[var(--border)] bg-[var(--glass)] px-3 py-2 text-right shadow-[var(--shadow-soft)]">
@@ -159,6 +182,8 @@ export default function HeaderNav() {
           {status === "authenticated" && (
             <button
               type="button"
+              id="navigation-toggle"
+              aria-controls="primary-navigation"
               aria-expanded={isOpen}
               aria-label="Toggle navigation menu"
               className="md:hidden rounded border border-[var(--border)]! bg-[var(--glass)]! px-3 py-2 text-sm font-medium text-[var(--text)] shadow-sm backdrop-blur-xl transition-colors hover:bg-[var(--glass-strong)]"
@@ -172,140 +197,41 @@ export default function HeaderNav() {
 
       {status === "authenticated" && isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/30 md:hidden"
+          className="fixed inset-x-0 bottom-0 top-16 z-30 bg-black/30 md:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
 
       {status === "authenticated" && (
         <aside
-          className={`fixed top-16 left-0 z-50 h-[calc(100vh-4rem)] w-54 transform border-r border-[var(--border)] bg-[var(--glass)] text-[var(--text)] shadow-[var(--shadow-soft)] backdrop-blur-xl transition-transform duration-200 md:fixed md:left-0 md:top-16 md:h-[calc(100vh-4rem)] md:translate-x-0 md:flex-shrink-0 md:shadow-none ${
-            isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-          }`}
+          id="primary-navigation"
+          aria-label="Main navigation"
+          className={`fixed inset-x-0 top-16 z-40 h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-[var(--border)] bg-[var(--glass-strong)] text-[var(--text)] shadow-[var(--shadow-soft)] backdrop-blur-xl transition-[transform,opacity,visibility] duration-200 motion-reduce:transition-none md:bottom-0 md:right-auto md:w-64 md:translate-y-0 md:border-b-0 md:border-r md:opacity-100 md:visible md:shadow-none ${isOpen ? "translate-y-0 opacity-100 visible" : "-translate-y-full opacity-0 invisible"}`}
         >
-          <div className="flex h-full flex-col">
-            <nav className="flex flex-1 flex-col gap-1 px-4 py-6 pt-8 md:pt-6">
-              {navGroups.slice(0, 2).map((group, groupIndex) => (
-                <div
-                  key={`group-${groupIndex}`}
-                  className={groupIndex === 0 ? "" : "border-t border-[var(--border)] pt-3 mt-3"}
-                >
-                  {group.map((item, itemIndex) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={pathname === item.href ? "page" : undefined}
-                      className={`block rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)] ${
-                        groupIndex === 3 && itemIndex > 0 ? "ml-3 text-[var(--text)]/80" : ""
-                      }`}
-                      onClick={() => setIsOpen(false)}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              ))}
-
-              {(moduleAccess.hr || moduleAccess.attendance) && (
-                <div className="border-t border-[var(--border)] pt-3 mt-3">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
-                  onClick={() => setHrOpen((prev) => !prev)}
-                  aria-expanded={hrOpen}
-                >
-                  <span>HR</span>
-                  <span className="text-xs text-[var(--text)]/65">{hrOpen ? "▾" : "▸"}</span>
-                </button>
-
-                {hrOpen && (
-                  <div className="mt-1 space-y-1">
-                    <Link
-                      href="/hr"
-                      className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/90 transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      HR Overview
-                    </Link>
-                    {moduleAccess.attendance && (
-                      <Link
-                      href="/attendance"
-                      className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/80 transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Attendance
-                    </Link>
-                    )}
+          <div className="flex min-h-full flex-col">
+            <nav aria-label="Modules" className="flex-1 space-y-4 px-3 py-4">
+              {navGroups.map((group) => (
+                <section key={group.label} aria-label={group.label}>
+                  <h2 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-[var(--text)]/55">{group.label}</h2>
+                  <div className="space-y-1">
+                    {group.items.map((item) => {
+                      const selected = activeHref === item.href;
+                      const ticketChild = item.key === "it-tickets" || item.key === "it-tickets-admin";
+                      return (
+                        <div key={item.key}>
+                          {ticketChild && group.items.find((entry) => entry.key === "it-tickets" || entry.key === "it-tickets-admin")?.key === item.key && (
+                            <div className="px-3 pb-1 pt-2 text-xs font-semibold text-[var(--text)]/65">IT Tickets</div>
+                          )}
+                          <Link href={item.href} aria-current={selected ? "page" : undefined}
+                            className={`flex min-h-11 items-center rounded-lg px-3 py-2 text-sm transition-colors hover:bg-[var(--text)]/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${ticketChild ? "ml-3 border-l border-[var(--border)]" : ""} ${selected ? "bg-blue-500/15 font-semibold text-[var(--text)]" : "font-medium text-[var(--text)]/75"}`}
+                            onClick={() => setIsOpen(false)}>
+                            {item.key === "hr" ? "HR Overview" : item.key === "it-tickets" ? "My Tickets" : item.key === "it-tickets-admin" ? "Admin Queue" : item.label}
+                          </Link>
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-              )}
-
-              {moduleAccess.assets && (
-                <div className="border-t border-[var(--border)] pt-3 mt-3">
-                <Link
-                  href="/assets"
-                  className="block rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Assets Management
-                </Link>
-              </div>
-              )}
-
-              {(moduleAccess["it-tickets"] || moduleAccess["it-tickets-admin"]) && (
-                <div className="border-t border-[var(--border)] pt-3 mt-3">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
-                    onClick={() => setTicketsOpen((prev) => !prev)}
-                    aria-expanded={ticketsOpen}
-                  >
-                    <span>IT Tickets</span>
-                    <span className="text-xs text-[var(--text)]/65">{ticketsOpen ? "▾" : "▸"}</span>
-                  </button>
-                  {ticketsOpen && (
-                    <div className="mt-1 space-y-1">
-                      {moduleAccess["it-tickets"] && (
-                        <Link
-                          href="/it-tickets"
-                          className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/90 transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          My Tickets
-                        </Link>
-                      )}
-                      {moduleAccess["it-tickets-admin"] && (
-                        <Link
-                          href="/it-tickets/admin"
-                          className="ml-3 block rounded px-3 py-2 text-xs font-medium text-[var(--text)]/80 transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          Admin Queue
-                        </Link>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {navGroups.slice(2).map((group, index) => (
-                <div
-                  key={`group-tail-${index}`}
-                  className="border-t border-[var(--border)] pt-3 mt-3"
-                >
-                  {group.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={pathname === item.href ? "page" : undefined}
-                      className="block rounded px-3 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[rgba(18,102,241,0.3)]! hover:text-[var(--text)]! hover:shadow-[0_10px_30px_rgba(18,102,241,0.15)]"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
+                </section>
               ))}
             </nav>
 
@@ -321,9 +247,8 @@ export default function HeaderNav() {
                   onClick={toggleTheme}
                 >
                   <span
-                    className={`block h-5 w-5 rounded-full bg-[var(--text)] shadow-sm transition-transform ${
-                      theme === "dark" ? "translate-x-7" : "translate-x-0"
-                    }`}
+                    className={`block h-5 w-5 rounded-full bg-[var(--text)] shadow-sm transition-transform ${theme === "dark" ? "translate-x-7" : "translate-x-0"
+                      }`}
                   />
                   <span className="sr-only">{theme === "dark" ? "Dark" : "Light"}</span>
                 </button>

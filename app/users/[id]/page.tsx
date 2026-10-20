@@ -1,4 +1,5 @@
 "use client";
+import LoadingState from "@/components/LoadingState";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Combobox, Transition } from "@headlessui/react";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/react/24/outline";
@@ -224,7 +225,7 @@ export default function UserDetailPage() {
     if (!user) {
         return (
             <ModuleGuard moduleKey="users" requiredLevel="modify">
-                <main className="p-6 text-[var(--foreground)]">Loading...</main>
+                <LoadingState />
             </ModuleGuard>
         );
     }
@@ -361,7 +362,7 @@ export default function UserDetailPage() {
                                                 </Combobox.Option>
 
                                                 {managerOptionsLoading && (
-                                                    <div className="px-3 py-2 text-xs text-[var(--text)]/70">Loading managers...</div>
+                                                    <LoadingState />
                                                 )}
                                                 {!managerOptionsLoading && filteredManagerOptions.length === 0 && (
                                                     <div className="px-3 py-2 text-xs text-[var(--text)]/70">No results</div>

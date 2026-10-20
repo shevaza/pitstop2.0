@@ -4,6 +4,7 @@ export const appModules = [
     { key: "bulk", label: "Bulk", href: "/bulk" },
     { key: "orgchart", label: "Org Chart", href: "/orgchart" },
     { key: "hr", label: "HR", href: "/hr" },
+    { key: "policies", label: "Policies", href: "/policies" },
     { key: "attendance", label: "Attendance", href: "/attendance" },
     { key: "assets", label: "Assets Management", href: "/assets" },
     { key: "it-tickets", label: "IT Tickets", href: "/it-tickets" },

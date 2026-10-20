@@ -1,4 +1,5 @@
 "use client";
+import LoadingState from "@/components/LoadingState";
 import { useEffect, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
@@ -25,7 +26,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   }, [status, router, pathname]);
 
   if (status === "loading") {
-    return <div className="p-6">Loading...</div>;
+    return <LoadingState />;
   }
 
   if (status !== "authenticated") {

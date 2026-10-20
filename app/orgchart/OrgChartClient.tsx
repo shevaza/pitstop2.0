@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Tree, TreeNode } from "react-organizational-chart";
@@ -316,7 +317,7 @@ export default function OrgChartClient() {
                 </div>
             </div>
 
-            {loading && <div>Loading…</div>}
+            {loading && <LoadingState />}
 
             {!loading && forest.length === 0 && (
                 <div className="text-[var(--text)]">No org data. Ensure users have managers set.</div>

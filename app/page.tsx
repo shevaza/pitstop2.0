@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import ModuleGuard from "@/components/ModuleGuard";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -76,7 +77,7 @@ export default function Home() {
             </div>
             <div className="h-72 rounded-xl border border-[var(--border)] bg-[var(--glass-strong)] p-3 shadow-inner">
               {loading ? (
-                <div className="p-4 text-[var(--text)]/70">Loading chart...</div>
+                <LoadingState compact />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={deptTop10} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>

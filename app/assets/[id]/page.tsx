@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import ModuleGuard from "@/components/ModuleGuard";
 import { assetGroups } from "@/lib/asset-groups";
 import { useParams, useRouter } from "next/navigation";
@@ -270,7 +271,7 @@ export default function AssetEditPage() {
     if (loading || !form) {
         return (
             <ModuleGuard moduleKey="assets">
-                <main className="p-6 text-[var(--foreground)]">Loading...</main>
+                <LoadingState />
             </ModuleGuard>
         );
     }

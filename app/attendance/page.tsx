@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import ModuleGuard from "@/components/ModuleGuard";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -222,7 +223,7 @@ export default function AttendancePage() {
                     {loading ? (
                       <tr>
                         <td className="px-3 py-4 text-[var(--text)]/70" colSpan={(data?.columns ?? []).length || 1}>
-                          Loading attendance…
+                          <LoadingState compact />
                         </td>
                       </tr>
                     ) : filteredRows.length === 0 ? (

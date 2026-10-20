@@ -313,6 +313,7 @@ export default function UserAccessPage() {
                                         <div>
                                             <div className="font-medium text-[var(--text)]">{module.label}</div>
                                             <div className="text-xs text-[var(--text)]/60">{module.href}</div>
+                                            {module.key === "policies" && <div className="mt-1 text-xs text-[var(--text)]/70">Read: view and acknowledge. Modify: publish, edit, and review acknowledgements.</div>}
                                         </div>
                                         <select
                                             value={allEmployees ? (bulkChanges[module.key] ?? "unchanged") : accessLevel[module.key]}

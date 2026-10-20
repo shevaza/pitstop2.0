@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import AuthGuard from "@/components/AuthGuard";
 import { moduleAccessLevelAllows, type AppModuleKey, type ModuleAccessLevel } from "@/lib/modules";
 import { useSession } from "next-auth/react";
@@ -51,7 +52,7 @@ export default function ModuleGuard({ moduleKey, requiredLevel = "read", childre
     return (
         <AuthGuard>
             {loading ? (
-                <main className="p-6 text-[var(--foreground)]">Loading...</main>
+                <LoadingState />
             ) : allowed ? (
                 children
             ) : (

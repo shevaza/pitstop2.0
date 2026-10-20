@@ -108,6 +108,18 @@ The server reads Supabase using the REST API, so `SUPABASE_URL` and `SUPABASE_SE
 
 ## Run the web app
 
+### Policy portal setup
+
+Run `supabase/policies_module.sql` in the same Supabase project as `user_module_access.sql` before using Policies. The SQL creates policies, immutable published revisions, version-specific acknowledgements, and atomic publication/acknowledgement RPCs. Only the server service role can access these objects; both clients use the authenticated Next.js API.
+
+In **User Access → Policies**, grant **Read** to employees who should read and acknowledge policies, **Modify** to HR/publishers who should also create/edit policies and see acknowledgement history, or **None** to disable access. Existing users receive no policy access automatically. The existing all-employees access action can grant Read in bulk.
+
+Publishing a new policy or editing a policy immediately creates a published version. Every version requires a new acknowledgement; historical acknowledgements remain available to publishers with employee UPN, version, and timestamp. Conflicting edits and acknowledgements of an outdated version return HTTP 409.
+
+Both web and Expo display persistent **in-app** pending-policy notifications, refreshed every minute while active and when the app regains focus. These alerts do not send email or device push notifications while the apps are closed. Policy publication, reading, acknowledgement, and acknowledgement history are available in both clients. The Expo app is a separate Git repository in `mobile/` and must be deployed/rebuilt separately.
+
+Run policy API regression checks with `node --test tests/policies-api.test.mjs`.
+
 ```bash
 pnpm dev
 ```

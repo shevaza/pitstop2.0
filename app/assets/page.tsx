@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import ModuleGuard from "@/components/ModuleGuard";
 import { assetGroups } from "@/lib/asset-groups";
 import { useRouter } from "next/navigation";
@@ -660,7 +661,7 @@ export default function AssetsPage() {
                             {filteredAssets.length
                                 ? `Showing ${(page - 1) * PAGE_SIZE + 1}-${Math.min(page * PAGE_SIZE, filteredAssets.length)} of ${filteredAssets.length}`
                                 : loading
-                                    ? "Loading assets..."
+                                    ? <LoadingState compact label="Loading assets" />
                                     : "No results"}
                         </div>
                         <div className="flex gap-2">

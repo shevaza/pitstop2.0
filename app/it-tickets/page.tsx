@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import ModuleGuard from "@/components/ModuleGuard";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -331,7 +332,7 @@ export default function ItTicketsPage() {
                                 No tickets submitted yet.
                             </div>
                         )}
-                        {loading && <div className="text-sm text-[var(--text)]/60">Loading tickets...</div>}
+                        {loading && <LoadingState compact />}
                     </div>
                 </section>
             </main>
