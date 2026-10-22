@@ -11,6 +11,7 @@ function load(file, imports) {
   });
   const exports = {};
   runInNewContext(outputText, { exports, Response, Error, SyntaxError, console, Map, require: (name) => {
+    if (name === '@/lib/policy-audience' && !(name in imports)) return { getPolicyAudience: async () => ({ departments: [], users: [] }) };
     if (name === 'zod') return { z };
     if (name in imports) return imports[name];
     throw new Error(`Unexpected import ${name}`);
@@ -90,4 +91,53 @@ test('version conflicts are returned as 409 without exposing database details', 
   const service = load('lib/policies.ts', { '@/lib/supabase-admin': {} });
   const response = service.policyError(new Error('Supabase POST rpc/acknowledge_policy failed (409): private SQL details'));
   assert.equal(response.status, 409); assert.doesNotMatch(await response.text(), /private SQL/);
+});
+
+
+test('targeted policies are only visible to recipients, while managers can see all without pending obligations', async () => {
+  const policies = [
+    { id: 'all', version: 1, recipient_upns: null },
+    { id: 'mine', version: 1, recipient_upns: ['employee@example.com'] },
+    { id: 'other', version: 1, recipient_upns: ['other@example.com'] },
+  ];
+  const service = load('lib/policies.ts', { '@/lib/supabase-admin': { supabaseRequest: async (table) => table === 'policies' ? policies : [] } });
+  assert.deepEqual(Array.from(await service.listPolicies(' Employee@Example.com '), (p) => p.id), ['all', 'mine']);
+  const admin = await service.listPolicies('employee@example.com', true);
+  assert.equal(admin.length, 3);
+  assert.equal(admin[2].requires_acknowledgement, false);
+});
+
+test('publication resolves departments and selected users into a union and preserves manual and expected versions', async () => {
+  let saved;
+  const service = load('lib/policies.ts', {
+    '@/lib/policy-audience': { getPolicyAudience: async () => ({ departments: ['IT', 'HR'], users: [
+      { upn: 'it@example.com', department: 'IT' }, { upn: 'hr@example.com', department: 'HR' }, { upn: 'other@example.com', department: '' },
+    ] }) },
+    '@/lib/supabase-admin': { supabaseRequest: async (_table, { body }) => { saved = body; } },
+  });
+  await service.publishPolicy({ id, version: 7, expectedVersion: 2, title: 'Title', body: 'Body', target_departments: ['IT'], target_users: ['it@example.com', 'hr@example.com'] }, ' HR@Example.com ');
+  assert.deepEqual(Array.from(saved.p_recipients), ['it@example.com', 'hr@example.com']);
+  assert.equal(saved.p_new_version, 7); assert.equal(saved.p_version, 2); assert.equal(saved.p_actor, 'hr@example.com');
+  await assert.rejects(service.publishPolicy({ title: 'Title', body: 'Body', target_departments: ['Unknown'] }, 'hr@example.com'), (e) => e.status === 400);
+  await assert.rejects(service.publishPolicy({ title: 'Title', body: 'Body', target_users: ['unknown@example.com'] }, 'hr@example.com'), (e) => e.status === 400);
+});
+
+test('manual version and audience payload validation rejects invalid selections and stale-edit metadata', async () => {
+  const api = route('app/api/policies/route.ts', async () => 'hr@example.com');
+  for (const body of [
+    { version: 0 }, { version: 1.5 }, { version: '2' }, { target_users: ['invalid'] },
+    { target_departments: [''] }, { id, version: 4 },
+  ]) assert.equal((await api.POST(request({ title: 'Title', body: 'Body', ...body }))).status, 400);
+});
+
+test('directory lookup follows Microsoft Graph pagination and returns department classifications', async () => {
+  const paths = [];
+  const directory = load('lib/policy-audience.ts', { '@/lib/graph': { graphFetch: async (path) => {
+    paths.push(path);
+    return paths.length === 1 ? { value: [{ userPrincipalName: 'A@Example.com', displayName: 'Alice', department: ' IT ' }], '@odata.nextLink': 'https://graph.microsoft.com/v1.0/users?$skiptoken=next' } : { value: [{ userPrincipalName: 'b@example.com', department: 'HR' }] };
+  } } });
+  const audience = await directory.getPolicyAudience();
+  assert.equal(paths[1], '/users?$skiptoken=next');
+  assert.deepEqual(Array.from(audience.departments), ['HR', 'IT']);
+  assert.equal(audience.users.find((u) => u.name === 'Alice').upn, 'a@example.com');
 });

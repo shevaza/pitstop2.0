@@ -6,15 +6,19 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 const schema = z.object({
-    id: z.string().uuid().optional(), version: z.number().int().positive().optional(),
+    id: z.string().uuid().optional(), version: z.number().int().positive().max(2147483647).optional(),
+    expectedVersion: z.number().int().positive().max(2147483647).optional(),
+    target_departments: z.array(z.string().trim().min(1).max(256)).max(1000).default([]),
+    target_users: z.array(z.string().trim().email().toLowerCase()).max(10000).default([]),
     title: z.string().trim().min(1).max(200), body: z.string().trim().min(1).max(100000),
-}).refine((value) => !value.id || !!value.version, { message: "Version is required for updates" });
+}).refine((value) => !value.id || (!!value.version && !!value.expectedVersion && value.version > value.expectedVersion), { message: "Enter a version greater than the current version" });
 
 export async function GET() {
     try {
         const upn = await assertModuleAccess("policies");
-        const [policies, levels] = await Promise.all([listPolicies(upn), getModuleAccessLevelMap(upn)]);
-        return Response.json({ policies, pendingCount: policies.filter((p) => !p.acknowledged_at).length, canModify: levels.policies === "modify" });
+        const levels = await getModuleAccessLevelMap(upn);
+        const policies = await listPolicies(upn, levels.policies === "modify");
+        return Response.json({ policies, pendingCount: policies.filter((p) => p.requires_acknowledgement && !p.acknowledged_at).length, canModify: levels.policies === "modify" });
     } catch (error) { return policyError(error); }
 }
 

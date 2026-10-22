@@ -114,7 +114,11 @@ Run `supabase/policies_module.sql` in the same Supabase project as `user_module_
 
 In **User Access → Policies**, grant **Read** to employees who should read and acknowledge policies, **Modify** to HR/publishers who should also create/edit policies and see acknowledgement history, or **None** to disable access. Existing users receive no policy access automatically. The existing all-employees access action can grant Read in bulk.
 
-Publishing a new policy or editing a policy immediately creates a published version. Every version requires a new acknowledgement; historical acknowledgements remain available to publishers with employee UPN, version, and timestamp. Conflicting edits and acknowledgements of an outdated version return HTTP 409.
+Re-run `supabase/policies_module.sql` when upgrading an existing installation to add policy audiences and the updated publication RPC. Existing policies remain company-wide.
+
+Publishers can send a policy to everyone, selected Microsoft 365 departments, selected users, or a combination of departments and users. The directory comes from Microsoft Graph using the existing application credentials and directory-read permissions. Department membership is captured at publication time; republish to refresh recipients. Only recipients see targeted policies and receive pending-policy alerts; publishers retain access to all policies. Recipients still need Policies Read access.
+
+Publishing a new policy or editing a policy immediately creates a published version. The web editor accepts a manually entered positive whole-number version; updates must use a higher version than the current one. Every version requires a new acknowledgement; historical acknowledgements remain available to publishers with employee UPN, version, and timestamp. Conflicting edits and acknowledgements of an outdated version return HTTP 409.
 
 Both web and Expo display persistent **in-app** pending-policy notifications, refreshed every minute while active and when the app regains focus. These alerts do not send email or device push notifications while the apps are closed. Policy publication, reading, acknowledgement, and acknowledgement history are available in both clients. The Expo app is a separate Git repository in `mobile/` and must be deployed/rebuilt separately.
 

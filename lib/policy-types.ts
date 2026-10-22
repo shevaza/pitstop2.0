@@ -3,6 +3,10 @@ export type Policy = {
     title: string;
     body: string;
     version: number;
+    target_departments: string[];
+    target_users: string[];
+    recipient_upns: string[] | null;
+    requires_acknowledgement?: boolean;
     updated_by_upn: string;
     created_at: string;
     updated_at: string;
@@ -17,3 +21,5 @@ export type PolicyAcknowledgement = {
 };
 
 export type PolicyList = { policies: Policy[]; pendingCount: number; canModify: boolean };
+
+export type PolicyAudience = { departments: string[]; users: { upn: string; name: string; department: string }[] };
