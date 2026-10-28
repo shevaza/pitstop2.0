@@ -1,6 +1,7 @@
 "use client";
 
-import LoadingState from "@/components/LoadingState";
+import ModuleHeader from "@/components/ModuleHeader";
+import { TableSkeleton } from "@/components/Skeleton";
 import { fetchCrossCheck } from "@/lib/cross-check-client";
 import ModuleGuard from "@/components/ModuleGuard";
 import Link from "next/link";
@@ -174,7 +175,7 @@ export default function CrossCheckPage() {
   return (
     <ModuleGuard moduleKey="attendance">
       <div className="space-y-6 p-4 md:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <ModuleHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-[var(--text)]">Data Cross Check</h1>
             <p className="text-sm text-[var(--text)]/70">
@@ -187,7 +188,7 @@ export default function CrossCheckPage() {
           >
             Back to Attendance
           </Link>
-        </div>
+        </ModuleHeader>
 
         <section className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-4 shadow-[var(--shadow-soft)]">
           <form className="grid gap-4 md:grid-cols-[160px_minmax(240px,1fr)_auto]" onSubmit={handleSubmit}>
@@ -336,11 +337,7 @@ function ResultTableView({
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td className="px-3 py-4 text-[var(--text)]/70" colSpan={columns.length || 1}>
-                  <LoadingState compact />
-                </td>
-              </tr>
+              <TableSkeleton columns={columns.length || 1} />
             ) : rows.length === 0 ? (
               <tr>
                 <td className="px-3 py-4 text-[var(--text)]/70" colSpan={columns.length || 1}>

@@ -1,5 +1,6 @@
 "use client";
 
+import ModuleHeader from "@/components/ModuleHeader";
 import ModuleGuard from "@/components/ModuleGuard";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
@@ -28,8 +29,10 @@ export default function SettingsPage() {
     return (
         <ModuleGuard moduleKey="settings">
             <div className="space-y-6 p-4 md:p-6">
-                <h1 className="text-2xl font-semibold text-[var(--text)]">Settings</h1>
-                <p className="text-sm text-[var(--text)]/70">Attendance connection and available reports.</p>
+                <ModuleHeader className="space-y-2">
+                    <h1 className="text-2xl font-semibold text-[var(--text)]">Settings</h1>
+                    <p className="text-sm text-[var(--text)]/70">Attendance connection and available reports.</p>
+                </ModuleHeader>
                 {error && <div role="alert" className="rounded-xl border border-[var(--border)]/40 p-4 text-sm text-rose-500">{error}</div>}
                 <div className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-4 text-[var(--text)]">
                     <h2 className="text-lg font-semibold">Attendance service</h2>

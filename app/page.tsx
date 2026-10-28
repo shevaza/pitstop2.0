@@ -1,6 +1,7 @@
 "use client";
 
 import LoadingState from "@/components/LoadingState";
+import Skeleton, { TableSkeleton } from "@/components/Skeleton";
 import ModuleGuard from "@/components/ModuleGuard";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -18,7 +19,7 @@ type Metrics = {
 export default function Home() {
   const { status } = useSession();
   const [data, setData] = useState<Metrics | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -77,7 +78,7 @@ export default function Home() {
             </div>
             <div className="h-72 rounded-xl border border-[var(--border)] bg-[var(--glass-strong)] p-3 shadow-inner">
               {loading ? (
-                <LoadingState compact />
+                <LoadingState compact variant="chart" label="Loading department chart" />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={deptTop10} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
@@ -105,7 +106,7 @@ export default function Home() {
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-5 shadow-[var(--shadow-soft)] backdrop-blur-2xl">
             <h2 className="mb-3 text-xl font-semibold text-[var(--text)]">Recent Bulk Runs</h2>
             <div className="space-y-2">
-              {data?.recentRuns?.length
+              {loading ? <LoadingState compact variant="cards" label="Loading recent runs" /> : data?.recentRuns?.length
                 ? data.recentRuns.map((r) => (
                   <div key={r.id} className="rounded-xl border border-[var(--border)] bg-[var(--glass-strong)] p-3 text-sm shadow-[var(--shadow-soft)]">
                     <div className="flex justify-between gap-2">
@@ -138,7 +139,8 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {(data?.departments ?? []).map((d) => (
+                {loading && <TableSkeleton columns={4} />}
+                {(!loading ? data?.departments ?? [] : []).map((d) => (
                   <tr key={d.name} className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(18,102,241,0.12)]">
                     <td className="p-2">{d.name}</td>
                     <td className="p-2 text-right">{d.count}</td>
@@ -159,8 +161,8 @@ function Kpi({ title, value, trend, loading }: { title: string; value?: number; 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-4 shadow-[var(--shadow-soft)] backdrop-blur-2xl transition-transform duration-150 hover:-translate-y-0.5">
       <div className="text-sm text-[var(--text)]/70">{title}</div>
-      <div className="mt-1 text-3xl font-semibold text-[var(--text)]">{loading ? "..." : value ?? "N/A"}</div>
-      {trend && <div className="mt-1 text-xs text-[var(--text)]/60">{trend} of total</div>}
+      <div className="mt-1 text-3xl font-semibold text-[var(--text)]">{loading ? <Skeleton className="h-9 w-20" /> : value ?? "N/A"}</div>
+      {!loading && trend && <div className="mt-1 text-xs text-[var(--text)]/60">{trend} of total</div>}
     </div>
   );
 }

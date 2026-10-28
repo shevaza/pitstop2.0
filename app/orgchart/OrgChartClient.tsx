@@ -1,5 +1,6 @@
 "use client";
 
+import ModuleHeader from "@/components/ModuleHeader";
 import LoadingState from "@/components/LoadingState";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -267,12 +268,12 @@ export default function OrgChartClient() {
 
     return (
         <main className="p-6 space-y-4">
-            <div className="flex items-center justify-between gap-3">
+            <ModuleHeader className="flex flex-wrap items-center justify-between gap-4">
                 <h1 className="text-2xl font-semibold text-[var(--text)]">Organization Chart</h1>
-                <div className="flex items-center gap-2 print:hidden">
+                <div className="flex min-w-0 flex-wrap items-center gap-2 print:hidden">
                     <input
                         placeholder="Filter by name / title / dept"
-                        className="border rounded px-2 py-1 w-72 border-[var(--border)] text-[var(--text)]"
+                        className="border rounded px-2 py-1 w-72 max-w-full border-[var(--border)] text-[var(--text)]"
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
                     />
@@ -315,7 +316,7 @@ export default function OrgChartClient() {
                         Collapse All
                     </button>
                 </div>
-            </div>
+            </ModuleHeader>
 
             {loading && <LoadingState />}
 

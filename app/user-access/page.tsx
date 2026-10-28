@@ -1,5 +1,6 @@
 "use client";
 
+import ModuleHeader from "@/components/ModuleHeader";
 import ModuleGuard from "@/components/ModuleGuard";
 import { assetGroups } from "@/lib/asset-groups";
 import {
@@ -173,12 +174,12 @@ export default function UserAccessPage() {
     return (
         <ModuleGuard moduleKey="user-access">
             <main className="space-y-6 p-6 text-[var(--foreground)]">
-                <section className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-6 shadow-[var(--shadow-soft)]">
+                <ModuleHeader>
                     <h1 className="text-2xl font-semibold text-[var(--text)]">User Access</h1>
                     <p className="mt-1 max-w-3xl text-sm text-[var(--text)]/70">
                         Set each user&apos;s access to every app module. Permissions are stored in Supabase and apply to navigation and protected routes.
                     </p>
-                </section>
+                </ModuleHeader>
 
                 {error && (
                     <div className="rounded-xl border border-[var(--border)]/40 bg-[color:rgba(255,255,255,0.06)] p-4 text-sm text-rose-500">

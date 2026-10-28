@@ -1,0 +1,95 @@
+▲ Next.js 16.4.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+- Environments: .env
+✓ Ready in 952ms
+✓ Running next.config.ts took 75ms
+Creating turbopack project {
+  dir: 'C:\\Users\\shafiq.zabet\\Desktop\\code\\pitstop2.0',
+  testMode: true
+}
+
+✓ Generated AGENTS.md for AI agents. Set `agentRules: false` in next.config to disable.
+ GET / 200 in 995ms (next.js: 449ms, application-code: 546ms)
+ GET / 200 in 45ms (next.js: 3ms, application-code: 42ms)
+ GET /api/auth/session 200 in 1355ms (next.js: 1259ms, application-code: 96ms)
+ GET /api/auth/session 200 in 373ms (next.js: 20ms, application-code: 353ms)
+metrics route env {
+  DATABASE_URL: 'file:C:/Users/shafiq.zabet/Desktop/code/pitstop2.0/prisma/dev.db',
+  cwd: 'C:\\Users\\shafiq.zabet\\Desktop\\code\\pitstop2.0',
+  dbExists: true
+}
+ GET /api/access/me 200 in 1207ms (next.js: 128ms, application-code: 1079ms)
+ GET /api/access/me 200 in 1111ms (next.js: 5ms, application-code: 1106ms)
+ GET /api/policies 200 in 961ms (next.js: 183ms, application-code: 778ms)
+ GET /api/policies 200 in 1045ms (next.js: 7ms, application-code: 1039ms)
+prisma:query SELECT `main`.`AuditRun`.`id`, `main`.`AuditRun`.`actorUpn`, `main`.`AuditRun`.`createdAt`, `main`.`AuditRun`.`dryRun`, `main`.`AuditRun`.`total`, `main`.`AuditRun`.`changed`, `main`.`AuditRun`.`failed` FROM `main`.`AuditRun` WHERE 1=1 ORDER BY `main`.`AuditRun`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/metrics 200 in 2.6s (next.js: 59ms, application-code: 2.5s)
+  Turbopack has seen frequent file updates and is waiting for the filesystem to settle (0.5s elapsed so far; last modified: "\\\\?\\C:\\Users\\shafiq.zabet\\Desktop\\code\\pitstop2.0\\node_modules\\next\\dist\\esm\\build\\polyfills").
+ GET /api/auth/session 200 in 60ms (next.js: 20ms, application-code: 41ms)
+ GET /api/policies 200 in 1080ms (next.js: 3ms, application-code: 1077ms)
+ GET /api/auth/session 200 in 50ms (next.js: 19ms, application-code: 31ms)
+ GET /api/policies 200 in 1102ms (next.js: 5ms, application-code: 1097ms)
+ GET / 200 in 117ms (next.js: 3ms, application-code: 114ms)
+ GET /api/auth/session 200 in 35ms (next.js: 16ms, application-code: 19ms)
+metrics route env {
+  DATABASE_URL: 'file:C:/Users/shafiq.zabet/Desktop/code/pitstop2.0/prisma/dev.db',
+  cwd: 'C:\\Users\\shafiq.zabet\\Desktop\\code\\pitstop2.0',
+  dbExists: true
+}
+ GET /api/auth/session 200 in 155ms (next.js: 10ms, application-code: 145ms)
+ GET /api/access/me 200 in 317ms (next.js: 3ms, application-code: 314ms)
+ GET /api/access/me 200 in 447ms (next.js: 2ms, application-code: 445ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`AuditRun`.`id`, `main`.`AuditRun`.`actorUpn`, `main`.`AuditRun`.`createdAt`, `main`.`AuditRun`.`dryRun`, `main`.`AuditRun`.`total`, `main`.`AuditRun`.`changed`, `main`.`AuditRun`.`failed` FROM `main`.`AuditRun` WHERE 1=1 ORDER BY `main`.`AuditRun`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/metrics 200 in 1205ms (next.js: 4ms, application-code: 1202ms)
+ GET /api/policies 200 in 1046ms (next.js: 2ms, application-code: 1044ms)
+ GET /api/policies 200 in 1204ms (next.js: 3ms, application-code: 1200ms)
+ GET /api/users/shafiq.zabet%40itcansolutions.com/photo 200 in 2.2s (next.js: 1296ms, application-code: 932ms)
+ GET /users 200 in 87ms (next.js: 25ms, application-code: 62ms)
+ GET /api/access/me 200 in 300ms (next.js: 4ms, application-code: 296ms)
+ GET /api/access/me 200 in 310ms (next.js: 5ms, application-code: 306ms)
+ GET /api/access/me 200 in 325ms (next.js: 4ms, application-code: 320ms)
+ GET /api/access/me 200 in 947ms (next.js: 4ms, application-code: 943ms)
+ GET /api/users?top=500 200 in 578ms (next.js: 6ms, application-code: 573ms)
+ GET /api/users?top=500 200 in 928ms (next.js: 111ms, application-code: 817ms)
+ GET / 200 in 50ms (next.js: 7ms, application-code: 42ms)
+metrics route env {
+  DATABASE_URL: 'file:C:/Users/shafiq.zabet/Desktop/code/pitstop2.0/prisma/dev.db',
+  cwd: 'C:\\Users\\shafiq.zabet\\Desktop\\code\\pitstop2.0',
+  dbExists: true
+}
+metrics route env {
+  DATABASE_URL: 'file:C:/Users/shafiq.zabet/Desktop/code/pitstop2.0/prisma/dev.db',
+  cwd: 'C:\\Users\\shafiq.zabet\\Desktop\\code\\pitstop2.0',
+  dbExists: true
+}
+ GET /api/access/me 200 in 410ms (next.js: 7ms, application-code: 403ms)
+ GET /api/access/me 200 in 615ms (next.js: 8ms, application-code: 607ms)
+prisma:query SELECT `main`.`AuditRun`.`id`, `main`.`AuditRun`.`actorUpn`, `main`.`AuditRun`.`createdAt`, `main`.`AuditRun`.`dryRun`, `main`.`AuditRun`.`total`, `main`.`AuditRun`.`changed`, `main`.`AuditRun`.`failed` FROM `main`.`AuditRun` WHERE 1=1 ORDER BY `main`.`AuditRun`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/metrics 200 in 751ms (next.js: 4ms, application-code: 746ms)
+prisma:query SELECT `main`.`AuditRun`.`id`, `main`.`AuditRun`.`actorUpn`, `main`.`AuditRun`.`createdAt`, `main`.`AuditRun`.`dryRun`, `main`.`AuditRun`.`total`, `main`.`AuditRun`.`changed`, `main`.`AuditRun`.`failed` FROM `main`.`AuditRun` WHERE 1=1 ORDER BY `main`.`AuditRun`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/metrics 200 in 856ms (next.js: 3ms, application-code: 853ms)
+ GET /api/auth/session 200 in 52ms (next.js: 18ms, application-code: 34ms)
+ GET /api/policies 200 in 850ms (next.js: 3ms, application-code: 846ms)
+ GET /api/policies 200 in 976ms (next.js: 1.5ms, application-code: 974ms)
+ GET /api/auth/session 200 in 58ms (next.js: 22ms, application-code: 36ms)
+ GET /api/policies 200 in 1124ms (next.js: 4ms, application-code: 1120ms)
+ GET /api/auth/session 200 in 54ms (next.js: 17ms, application-code: 37ms)
+ GET /api/policies 200 in 1556ms (next.js: 3ms, application-code: 1553ms)
+ GET /users 200 in 53ms (next.js: 5ms, application-code: 48ms)
+ GET /api/access/me 200 in 323ms (next.js: 3ms, application-code: 320ms)
+ GET /api/access/me 200 in 339ms (next.js: 2ms, application-code: 337ms)
+ GET /api/access/me 200 in 365ms (next.js: 4ms, application-code: 360ms)
+ GET /api/access/me 200 in 465ms (next.js: 2ms, application-code: 463ms)
+ GET /api/policies 200 in 1252ms (next.js: 5ms, application-code: 1247ms)
+ GET /api/users?top=500 200 in 1244ms (next.js: 3ms, application-code: 1242ms)
+ GET /api/users?top=500 200 in 934ms (next.js: 3ms, application-code: 931ms)
+ GET /api/auth/session 200 in 52ms (next.js: 22ms, application-code: 29ms)
+ GET /api/policies 200 in 1514ms (next.js: 4ms, application-code: 1510ms)
+ GET /api/auth/session 200 in 51ms (next.js: 19ms, application-code: 32ms)
+ GET /api/policies 200 in 1289ms (next.js: 2ms, application-code: 1287ms)
+ GET /api/auth/session 200 in 63ms (next.js: 18ms, application-code: 44ms)
+ GET /api/policies 200 in 753ms (next.js: 3ms, application-code: 750ms)
+ GET /api/auth/session 200 in 43ms (next.js: 15ms, application-code: 28ms)
+ GET /api/policies 200 in 1209ms (next.js: 3ms, application-code: 1206ms)

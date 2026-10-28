@@ -1,5 +1,7 @@
 "use client";
+import ModuleHeader from "@/components/ModuleHeader";
 import MultiSelect, { type Option } from "@/components/MultiSelect";
+import { TableSkeleton } from "@/components/Skeleton";
 import ModuleGuard from "@/components/ModuleGuard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -358,7 +360,9 @@ export default function UsersPage() {
     return (
         <ModuleGuard moduleKey="users">
             <main className="p-6 space-y-4 text-[var(--foreground)]">
-                <h1 className="text-2xl font-semibold text-[var(--text)]">Users</h1>
+                <ModuleHeader>
+                    <h1 className="text-2xl font-semibold text-[var(--text)]">Users</h1>
+                </ModuleHeader>
                 <div className="flex flex-wrap items-center gap-2">
                     <input
                         className="w-72 rounded border border-[var(--border)] bg-[var(--glass)] p-2 text-[var(--text)] placeholder:text-[var(--text)]/50 focus:border-[var(--text)]/60 focus:outline-none"
@@ -617,6 +621,7 @@ export default function UsersPage() {
                             </tr>
                         </thead>
                         <tbody>
+                            {loading && !paginatedItems.length && <TableSkeleton columns={6} />}
                             {paginatedItems.map((u) => (
                                 <tr key={u.id} className="border-t border-[var(--border)]/80 transition-colors hover:bg-[color:rgba(18,102,241,0.12)]">
                                     <td className="p-2">

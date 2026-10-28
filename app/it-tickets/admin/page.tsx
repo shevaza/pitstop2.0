@@ -1,5 +1,7 @@
 "use client";
 
+import ModuleHeader from "@/components/ModuleHeader";
+import LoadingState from "@/components/LoadingState";
 import ModuleGuard from "@/components/ModuleGuard";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -202,7 +204,7 @@ export default function ItTicketsAdminPage() {
     return (
         <ModuleGuard moduleKey="it-tickets-admin">
             <main className="space-y-6 p-6 text-[var(--foreground)]">
-                <section className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-6 shadow-[var(--shadow-soft)]">
+                <ModuleHeader>
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
                             <h1 className="text-2xl font-semibold text-[var(--text)]">IT Tickets Admin</h1>
@@ -224,7 +226,7 @@ export default function ItTicketsAdminPage() {
                             {message}
                         </div>
                     )}
-                </section>
+                </ModuleHeader>
 
                 <section className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
                     <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-4 shadow-[var(--shadow-soft)]">
@@ -241,6 +243,7 @@ export default function ItTicketsAdminPage() {
                             ))}
                         </div>
                         <div className="space-y-2">
+                            {loading && !filteredTickets.length && <LoadingState compact variant="cards" label="Loading tickets" />}
                             {filteredTickets.map((ticket) => (
                                 <button
                                     key={ticket.id}
@@ -254,7 +257,7 @@ export default function ItTicketsAdminPage() {
                                     </div>
                                 </button>
                             ))}
-                            {!filteredTickets.length && (
+                            {!loading && !filteredTickets.length && (
                                 <div className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--text)]/60">
                                     No tickets in this view.
                                 </div>

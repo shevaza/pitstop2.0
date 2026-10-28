@@ -1,0 +1,15 @@
+.header {
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--primary);
+    border-radius: 1rem;
+    padding: 1.25rem;
+    color: var(--text);
+    background: radial-gradient(ellipse at top left, var(--primary-surface), transparent 70%), var(--glass);
+    box-shadow: var(--shadow-soft);
+}
+
+@media (min-width: 768px) {
+    .header {
+        padding: 1.75rem;
+    }
+}

@@ -1,28 +1,34 @@
 "use client";
 
+import ModuleHeader from "@/components/ModuleHeader";
 import LoadingState from "@/components/LoadingState";
 import ModuleGuard from "@/components/ModuleGuard";
 import type { Policy, PolicyAcknowledgement, PolicyList, PolicyAudience } from "@/lib/policy-types";
 import { useCallback, useEffect, useState } from "react";
 
 const panel = "rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-5 space-y-4";
-const button = "rounded-lg border border-[var(--border)] px-4 py-2 text-sm disabled:opacity-50";
-const input = "w-full rounded-lg border border-[var(--border)] bg-[var(--glass-strong)] p-3";
+const button = "inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--glass)] px-4 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--glass-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-50";
+const primaryButton = `${button.replace("border-[var(--border)] bg-[var(--glass)]", "border-transparent bg-[var(--primary)]").replace("hover:bg-[var(--glass-strong)]", "hover:bg-[var(--primary-hover)]")} text-white`;
+const input = "w-full rounded-lg border border-[var(--border)] bg-[var(--glass-strong)] p-3 text-sm focus:outline-2 focus:outline-[var(--primary)]";
 function Policies() {
     const [data, setData] = useState<PolicyList | null>(null);
     const [selected, setSelected] = useState<Policy | null>(null);
     const [editor, setEditor] = useState<{ id?: string; version: number; expectedVersion?: number; title: string; body: string; target_departments: string[]; target_users: string[] } | null>(null);
     const [audience, setAudience] = useState<PolicyAudience | null>(null);
     const [audienceSearch, setAudienceSearch] = useState("");
+    const [audienceError, setAudienceError] = useState("");
+    const [audienceAttempt, setAudienceAttempt] = useState(0);
+    const editing = !!editor;
     useEffect(() => {
-        if (!editor || audience) return;
+        if (!editing || audience) return;
+        setAudienceError("");
         const controller = new AbortController();
         fetch("/api/policies/audience", { signal: controller.signal, cache: "no-store" }).then(async (res) => {
             if (!res.ok) throw new Error(await res.text());
             setAudience(await res.json());
-        }).catch((e) => { if (e.name !== "AbortError") setError(e.message); });
+        }).catch((e) => { if (e.name !== "AbortError") setAudienceError(e.message); });
         return () => controller.abort();
-    }, [editor, audience]);
+    }, [editing, audience, audienceAttempt]);
     const [confirmed, setConfirmed] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
@@ -57,67 +63,84 @@ function Policies() {
         setSelected(null); setConfirmed(false); setNotice("Acknowledgement recorded.");
         await load(); window.dispatchEvent(new Event("policies-changed"));
     }
-    return <main className="mx-auto max-w-6xl space-y-5 p-4 text-[var(--text)] md:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><h1 className="text-3xl font-semibold">Policy portal</h1><p className="mt-2 opacity-70">Read company policies and acknowledge each published version.</p></div>
-            {data?.canModify && <button className={button} disabled={busy} onClick={() => { setEditor({ title: "", body: "", version: 1, target_departments: [], target_users: [] }); setSelected(null); }}>New policy</button>}
-        </div>
-        {error && <p role="alert" className="rounded-lg border border-red-400 p-3">{error} <button className={button} disabled={busy} onClick={() => void perform(load)}>Refresh policies</button></p>}
-        {notice && <p role="status" className={panel}>{notice}</p>}
-        {!data && !error && <LoadingState compact />}
-        {data && <>
-            <div className={panel}><strong>{data.pendingCount} {data.pendingCount === 1 ? "policy requires" : "policies require"} your acknowledgement</strong><p className="text-sm opacity-70">New policies and updates remain pending until you acknowledge them.</p></div>
-            <div className="flex flex-wrap items-center gap-4">
-                <input aria-label="Search policies" className={`${input} max-w-md`} placeholder="Search policies" value={search} onChange={(e) => setSearch(e.target.value)} />
-                <label className="flex gap-2"><input type="checkbox" checked={pendingOnly} onChange={(e) => setPendingOnly(e.target.checked)} />Pending only</label>
-                <button className={button} disabled={busy} onClick={() => void perform(load)}>Refresh</button>
+    const filteredPolicies = data?.policies.filter((policy) =>
+        (!pendingOnly || (policy.requires_acknowledgement !== false && !policy.acknowledged_at)) &&
+        `${policy.title} ${policy.body}`.toLowerCase().includes(search.trim().toLowerCase())
+    ) ?? [];
+    const visibleUsers = audience?.users.filter((user) => `${user.name} ${user.upn} ${user.department}`.toLowerCase().includes(audienceSearch.toLowerCase())) ?? [];
+    const everyone = !!editor && !editor.target_departments.length && !editor.target_users.length;
+    function backToLibrary() { setEditor(null); setSelected(null); setReport(null); setConfirmed(false); }
+    function startEditor(policy?: Policy) {
+        setAudienceSearch(""); setNotice(""); setError(""); setReport(null); setSelected(null);
+        setEditor(policy ? { id: policy.id, title: policy.title, body: policy.body, version: policy.version + 1, expectedVersion: policy.version, target_departments: policy.target_departments ?? [], target_users: policy.target_users ?? [] } : { title: "", body: "", version: 1, target_departments: [], target_users: [] });
+    }
+    return <main className="mx-auto max-w-7xl space-y-6 p-4 text-[var(--text)] md:p-8">
+        <ModuleHeader className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                {(editor || selected) && <button type="button" className="mb-3 text-sm text-[var(--primary)] hover:underline disabled:opacity-50" disabled={busy} onClick={backToLibrary}>Back to policies</button>}
+                <h1 className="text-3xl font-semibold tracking-tight">{editor ? editor.id ? "Update policy" : "New policy" : selected ? "Read policy" : "Policy portal"}</h1>
+                <p className="mt-2 text-sm opacity-70">{editor ? "Write the policy, choose its recipients, then publish." : selected ? "Review the policy and confirm your acknowledgement below." : "Find company policies and keep your acknowledgements up to date."}</p>
             </div>
-            {editor && <form className={panel} onSubmit={(e) => { e.preventDefault(); void perform(save); }}>
-                <h2 className="text-xl font-semibold">{editor.id ? "Publish an updated policy" : "Publish a new policy"}</h2>
-                <label className="block">Version<input type="number" required min={editor.expectedVersion ? editor.expectedVersion + 1 : 1} max={2147483647} step={1} className={`${input} mt-2`} value={Number.isNaN(editor.version) ? "" : editor.version} onChange={(e) => setEditor({ ...editor, version: e.target.valueAsNumber })} /></label>
-                <fieldset className="space-y-3"><legend className="font-semibold">Send to</legend>
-                    <label className="flex gap-2"><input type="radio" name="audience" checked={!editor.target_departments.length && !editor.target_users.length} onChange={() => setEditor({ ...editor, target_departments: [], target_users: [] })} />Everyone</label>
-                    <p className="text-sm opacity-70">Select departments, individual users, or both. With no selection, the policy goes to everyone. Department recipients are captured from Microsoft 365 when you publish.</p>
-                    {!audience ? <p>Loading Microsoft 365 directory?</p> : <>
-                        <label className="block">Departments<select multiple className={`${input} mt-2`} value={editor.target_departments} onChange={(e) => setEditor({ ...editor, target_departments: Array.from(e.target.selectedOptions, (o) => o.value) })}>{audience.departments.map((d) => <option key={d} value={d}>{d}</option>)}</select></label>
-                        <input aria-label="Search recipients" placeholder="Search users by name, email or department" className={input} value={audienceSearch} onChange={(e) => setAudienceSearch(e.target.value)} />
-                        <div className="max-h-64 overflow-y-auto space-y-2" role="group" aria-label="Selected users">{audience.users.filter((u) => `${u.name} ${u.upn} ${u.department}`.toLowerCase().includes(audienceSearch.toLowerCase())).map((u) => <label key={u.upn} className="flex gap-2"><input type="checkbox" checked={editor.target_users.includes(u.upn)} onChange={(e) => setEditor({ ...editor, target_users: e.target.checked ? [...editor.target_users, u.upn] : editor.target_users.filter((upn) => upn !== u.upn) })} />{u.name} ({u.upn}){u.department && ` ? ${u.department}`}</label>)}</div>
-                        <p className="text-sm">{editor.target_departments.length} departments ? {editor.target_users.length} selected users</p>
-                    </>}
-                </fieldset>
-                <label className="block">Title<input required maxLength={200} className={`${input} mt-2`} value={editor.title} onChange={(e) => setEditor({ ...editor, title: e.target.value })} /></label>
-                <label className="block">Policy text<textarea required maxLength={100000} rows={14} className={`${input} mt-2`} value={editor.body} onChange={(e) => setEditor({ ...editor, body: e.target.value })} /></label>
-                <p className="text-sm opacity-70">Publishing makes this version available immediately and requires the recipients to acknowledge it.</p>
-                <div className="flex gap-3"><button className={button} disabled={busy || !Number.isInteger(editor.version) || editor.version < (editor.expectedVersion ? editor.expectedVersion + 1 : 1) || !editor.title.trim() || !editor.body.trim()}>{busy ? "Publishing…" : "Publish policy"}</button><button type="button" className={button} disabled={busy} onClick={() => setEditor(null)}>Cancel</button></div>
-            </form>}
-            {selected && <article className={panel}>
-                <div className="flex justify-between gap-3"><h2 className="text-2xl font-semibold">{selected.title}</h2><button className={button} disabled={busy} onClick={() => { setSelected(null); setReport(null); }}>Close</button></div>
-                <p className="text-sm opacity-70">Version {selected.version} · Published {new Date(selected.updated_at).toLocaleString()} by {selected.updated_by_upn}</p>
-                <div className="whitespace-pre-wrap break-words leading-7">{selected.body}</div>
-                {data.canModify && <p className="text-sm">Audience: {selected.recipient_upns == null ? "Everyone" : `${selected.target_departments.join(", ")}${selected.target_departments.length && selected.target_users.length ? "; " : ""}${selected.target_users.join(", ")} (${selected.recipient_upns.length} recipients)`}</p>}
-                {selected.requires_acknowledgement === false ? <p>This policy is assigned to other recipients.</p> : selected.acknowledged_at ? <p>Acknowledged {new Date(selected.acknowledged_at).toLocaleString()}</p> : <>
-                    <label className="flex gap-3"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />I confirm that I have read this policy, version {selected.version}.</label>
-                    <button className={button} disabled={busy || !confirmed} onClick={() => void perform(acknowledge)}>Acknowledge policy</button>
-                </>}
-                {data.canModify && <div className="flex flex-wrap gap-3">
-                    <button className={button} disabled={busy} onClick={() => { setEditor({ id: selected.id, version: selected.version + 1, expectedVersion: selected.version, target_departments: selected.target_departments ?? [], target_users: selected.target_users ?? [], title: selected.title, body: selected.body }); setSelected(null); setReport(null); }}>Edit policy</button>
-                    <button className={button} disabled={busy} onClick={() => void perform(async () => {
-                        const res = await fetch(`/api/policies/${selected.id}/acknowledgements`, { cache: "no-store" });
-                        if (!res.ok) throw new Error(await res.text());
-                        setReport((await res.json()).acknowledgements);
-                    })}>View acknowledgements</button>
-                </div>}
-                {report && <div className="overflow-x-auto"><h3 className="mb-3 font-semibold">Acknowledgement history ({report.length})</h3>{report.length ? <table className="w-full text-left text-sm"><thead><tr><th>Employee</th><th>Version</th><th>Acknowledged</th></tr></thead><tbody>{report.map((row) => <tr key={`${row.user_upn}:${row.version}`}><td className="py-2 pr-4">{row.user_upn}</td><td>{row.version}</td><td>{new Date(row.acknowledged_at).toLocaleString()}</td></tr>)}</tbody></table> : <p>No acknowledgements yet.</p>}</div>}
-            </article>}
-            <p className="text-sm opacity-70">Showing {data.policies.filter((p) => (!pendingOnly || (p.requires_acknowledgement !== false && !p.acknowledged_at)) && `${p.title} ${p.body}`.toLowerCase().includes(search.toLowerCase())).length} of {data.policies.length} policies</p>
-            <div className="grid gap-4 md:grid-cols-3">{data.policies.filter((p) => (!pendingOnly || (p.requires_acknowledgement !== false && !p.acknowledged_at)) && `${p.title} ${p.body}`.toLowerCase().includes(search.toLowerCase())).map((policy) => <div key={policy.id} className={panel}>
-                <p className="text-sm">{policy.requires_acknowledgement === false ? "Assigned to other recipients" : policy.acknowledged_at ? "Acknowledged" : policy.version === 1 ? "New · Acknowledgement required" : "Updated · Acknowledgement required"}</p>
-                <h2 className="text-xl font-semibold">{policy.title}</h2><p className="text-sm opacity-70">Version {policy.version} · {new Date(policy.updated_at).toLocaleDateString()}</p>
-                <p className="line-clamp-2 whitespace-pre-wrap">{policy.body}</p>
-                <button className={button} disabled={busy} onClick={() => { setSelected(policy); setConfirmed(false); setReport(null); setEditor(null); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Read policy</button>
-            </div>)}</div>
-            {!data.policies.length && <p className={panel}>No policies have been published yet.</p>}
-            {!!data.policies.length && !data.policies.some((p) => (!pendingOnly || (p.requires_acknowledgement !== false && !p.acknowledged_at)) && `${p.title} ${p.body}`.toLowerCase().includes(search.toLowerCase())) && <p>No matching policies.</p>}
+            {!editor && !selected && data?.canModify && <button className={primaryButton} disabled={busy} onClick={() => startEditor()}>+ New policy</button>}
+        </ModuleHeader>
+        {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-400/50 bg-red-400/10 p-4"><p className="min-w-0 break-words text-sm">{error}</p><button className={button} disabled={busy} onClick={() => void perform(load)}>Refresh policies</button></div>}
+        {notice && <p role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">{notice}</p>}
+        {!data && !error && <LoadingState label="Loading policies" />}
+        {data && <>
+            {editor ? <form className="space-y-6" onSubmit={(event) => { event.preventDefault(); void perform(save); }}>
+                <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                    <section className={panel} aria-labelledby="policy-content-heading">
+                        <div><h2 id="policy-content-heading" className="text-lg font-semibold">Policy content</h2><p className="mt-1 text-sm opacity-60">Give recipients a clear title and the full policy to review.</p></div>
+                        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_7rem]">
+                            <label className="block text-sm font-medium">Title<input autoFocus required maxLength={200} placeholder="e.g. Information security policy" className={`${input} mt-2`} value={editor.title} onChange={(event) => setEditor({ ...editor, title: event.target.value })} /></label>
+                            <label className="block text-sm font-medium">Version<input type="number" required min={editor.expectedVersion ? editor.expectedVersion + 1 : 1} max={2147483647} step={1} className={`${input} mt-2`} value={Number.isNaN(editor.version) ? "" : editor.version} onChange={(event) => setEditor({ ...editor, version: event.target.valueAsNumber })} /></label>
+                        </div>
+                        {editor.expectedVersion && <p className="text-xs opacity-60">Current version: {editor.expectedVersion}. Updates require a higher version number.</p>}
+                        <label className="block text-sm font-medium">Policy text<textarea required maxLength={100000} rows={18} placeholder="Enter the complete policy..." className={`${input} mt-2 min-h-80 resize-y leading-7`} value={editor.body} onChange={(event) => setEditor({ ...editor, body: event.target.value })} /></label>
+                    </section>
+                    <section className={panel} aria-labelledby="recipients-heading">
+                        <div><h2 id="recipients-heading" className="text-lg font-semibold">Recipients</h2><p className="mt-1 text-sm opacity-60">Choose departments, individual employees, or both.</p></div>
+                        <div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--primary-surface)] p-3 text-sm"><span>{everyone ? "Everyone in the company" : `${editor.target_departments.length} departments / ${editor.target_users.length} employees`}</span>{!everyone && <button type="button" className="shrink-0 text-xs underline" onClick={() => setEditor({ ...editor, target_departments: [], target_users: [] })}>Reset to everyone</button>}</div>
+                        <p className="text-xs leading-5 opacity-60">With no selection, this policy goes to everyone. Department membership is captured from Microsoft 365 when you publish.</p>
+                        {audienceError ? <div role="alert" className="space-y-2 text-sm"><p>Could not load the directory: {audienceError}</p><button type="button" className={button} onClick={() => setAudienceAttempt((value) => value + 1)}>Retry directory</button></div> : !audience ? <LoadingState compact label="Loading recipient directory" /> : <>
+                            <fieldset><legend className="mb-2 text-sm font-medium">Departments</legend><div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] p-2">{audience.departments.length ? audience.departments.map((department) => <label key={department} className="flex cursor-pointer items-start gap-3 rounded-md p-2 text-sm hover:bg-[var(--glass-strong)]"><input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={editor.target_departments.includes(department)} onChange={(event) => setEditor({ ...editor, target_departments: event.target.checked ? [...editor.target_departments, department] : editor.target_departments.filter((value) => value !== department) })} /><span className="break-words">{department}</span></label>) : <p className="p-2 text-sm opacity-60">No departments available.</p>}</div></fieldset>
+                            <fieldset className="space-y-2"><legend className="mb-2 text-sm font-medium">Individual employees</legend><input aria-label="Search recipients" placeholder="Search name, email or department" className={input} value={audienceSearch} onChange={(event) => setAudienceSearch(event.target.value)} /><div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] p-2">{visibleUsers.map((user) => <label key={user.upn} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-[var(--glass-strong)]"><input type="checkbox" className="mt-1 accent-[var(--primary)]" checked={editor.target_users.includes(user.upn)} onChange={(event) => setEditor({ ...editor, target_users: event.target.checked ? [...editor.target_users, user.upn] : editor.target_users.filter((upn) => upn !== user.upn) })} /><span className="min-w-0 text-sm"><span className="block font-medium break-words">{user.name}</span><span className="block break-all text-xs opacity-60">{user.upn}</span>{user.department && <span className="block text-xs opacity-60">{user.department}</span>}</span></label>)}{!visibleUsers.length && <p className="p-2 text-sm opacity-60">No matching employees.</p>}</div></fieldset>
+                        </>}
+                    </section>
+                </div>
+                <div className="flex flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="max-w-xl text-sm opacity-70">Publishing takes effect immediately. {everyone ? "Everyone" : "Selected recipients"} will need to acknowledge this version.</p>
+                    <div className="flex shrink-0 justify-end gap-3"><button type="button" className={button} disabled={busy} onClick={backToLibrary}>Cancel</button><button type="submit" className={primaryButton} disabled={busy || !Number.isInteger(editor.version) || editor.version < (editor.expectedVersion ? editor.expectedVersion + 1 : 1) || !editor.title.trim() || !editor.body.trim()}>{busy ? "Publishing..." : "Publish policy"}</button></div>
+                </div>
+            </form> : selected ? <div className="space-y-6">
+                <article className={`${panel} !p-0 overflow-hidden`}>
+                    <div className="space-y-3 border-b border-[var(--border)] p-5 md:p-8"><span className="inline-flex rounded-full bg-[var(--primary-surface)] px-3 py-1 text-xs font-medium">Version {selected.version}</span><h2 className="break-words text-2xl font-semibold">{selected.title}</h2><p className="break-words text-sm opacity-60">Published {new Date(selected.updated_at).toLocaleString()} by {selected.updated_by_upn}</p></div>
+                    <div className="mx-auto max-w-3xl whitespace-pre-wrap break-words p-5 leading-8 md:p-8">{selected.body}</div>
+                    <div className="space-y-4 border-t border-[var(--border)] bg-[var(--glass-strong)] p-5 md:p-8">
+                        {selected.requires_acknowledgement === false ? <p className="text-sm opacity-70">This policy is assigned to other recipients.</p> : selected.acknowledged_at ? <p role="status" className="text-sm font-medium text-emerald-500">Acknowledged on {new Date(selected.acknowledged_at).toLocaleString()}</p> : <><h3 className="font-semibold">Your acknowledgement</h3><label className="flex cursor-pointer items-start gap-3 text-sm leading-6"><input type="checkbox" className="mt-1 accent-[var(--primary)]" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I confirm that I have read this policy, version {selected.version}.</label><div className="flex justify-end"><button className={primaryButton} disabled={busy || !confirmed} onClick={() => void perform(acknowledge)}>{busy ? "Saving..." : "Acknowledge policy"}</button></div></>}
+                    </div>
+                </article>
+                {data.canModify && <section className={panel}><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-semibold">Policy management</h2><p className="mt-1 max-w-2xl break-words text-sm opacity-60">Audience: {selected.recipient_upns == null ? "Everyone" : `${[...selected.target_departments, ...selected.target_users].join(", ")} (${selected.recipient_upns.length} recipients)`}</p></div><div className="flex flex-wrap gap-2"><button className={button} disabled={busy} onClick={() => startEditor(selected)}>Edit policy</button><button className={button} disabled={busy} onClick={() => void perform(async () => {
+                    const response = await fetch(`/api/policies/${selected.id}/acknowledgements`, { cache: "no-store" });
+                    if (!response.ok) throw new Error(await response.text());
+                    setReport((await response.json()).acknowledgements);
+                })}>{busy ? "Loading..." : "View acknowledgements"}</button></div></div>
+                    {report && <div className="space-y-3 border-t border-[var(--border)] pt-4"><h3 className="text-sm font-semibold">Acknowledgement history ({report.length})</h3>{report.length ? <div className="overflow-x-auto rounded-lg border border-[var(--border)]"><table className="w-full text-left text-sm"><thead className="bg-[var(--glass-strong)]"><tr><th scope="col" className="p-3">Employee</th><th scope="col" className="p-3">Version</th><th scope="col" className="p-3">Acknowledged</th></tr></thead><tbody>{report.map((row) => <tr key={`${row.user_upn}:${row.version}`} className="border-t border-[var(--border)]"><td className="p-3">{row.user_upn}</td><td className="p-3">{row.version}</td><td className="whitespace-nowrap p-3">{new Date(row.acknowledged_at).toLocaleString()}</td></tr>)}</tbody></table></div> : <p className="text-sm opacity-60">No acknowledgements yet.</p>}</div>}
+                </section>}
+            </div> : <>
+                <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-[var(--primary-surface)] p-5"><div className="flex items-center gap-4"><span className="text-4xl font-semibold tabular-nums">{data.pendingCount}</span><div><h2 className="font-semibold">{data.pendingCount ? "Awaiting your acknowledgement" : "You are up to date"}</h2><p className="mt-1 text-sm opacity-70">{data.pendingCount ? "Review your pending policies and acknowledge each version." : "You have no policies waiting for acknowledgement."}</p></div></div>{data.pendingCount > 0 && <button className={button} onClick={() => { setPendingOnly(true); setSearch(""); }}>View pending policies</button>}</section>
+                <section className="space-y-5" aria-labelledby="library-heading">
+                    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 id="library-heading" className="text-xl font-semibold">Policy library</h2><p className="mt-1 text-sm opacity-60">Showing {filteredPolicies.length} of {data.policies.length} policies</p></div><button className={button} disabled={busy} onClick={() => void perform(load)}>{busy ? "Refreshing..." : "Refresh"}</button></div>
+                    <div className="flex flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--glass)] p-4 sm:flex-row sm:items-center"><label className="flex-1"><span className="sr-only">Search policies</span><input type="search" className={input} placeholder="Search policies by title or content..." value={search} onChange={(event) => setSearch(event.target.value)} /></label><label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm"><input type="checkbox" className="accent-[var(--primary)]" checked={pendingOnly} onChange={(event) => setPendingOnly(event.target.checked)} />Pending only</label>{(search || pendingOnly) && <button className="text-sm text-[var(--primary)] hover:underline" onClick={() => { setSearch(""); setPendingOnly(false); }}>Clear filters</button>}</div>
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filteredPolicies.map((policy) => <article key={policy.id} className={`${panel} flex flex-col gap-4 !space-y-0`}>
+                        <div><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${policy.requires_acknowledgement === false ? "bg-[var(--glass-strong)]" : policy.acknowledged_at ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-[var(--text)]"}`}>{policy.requires_acknowledgement === false ? "Other recipients" : policy.acknowledged_at ? "Acknowledged" : "Acknowledgement required"}</span></div>
+                        <div><h3 className="break-words text-lg font-semibold">{policy.title}</h3><p className="mt-1 text-xs opacity-60">Version {policy.version} / Updated {new Date(policy.updated_at).toLocaleDateString()}</p></div>
+                        <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-6 opacity-70">{policy.body}</p>
+                        <div className="!mt-auto flex justify-end border-t border-[var(--border)] pt-4"><button className={button} disabled={busy} onClick={() => { setSelected(policy); setConfirmed(false); setReport(null); setEditor(null); window.scrollTo({ top: 0, behavior: "instant" }); }}>{policy.requires_acknowledgement !== false && !policy.acknowledged_at ? "Review policy" : "Read policy"}</button></div>
+                    </article>)}</div>
+                    {!filteredPolicies.length && <div className={`${panel} py-12 text-center`}><h3 className="font-semibold">{data.policies.length ? "No matching policies" : "No policies published yet"}</h3><p className="text-sm opacity-60">{data.policies.length ? "Try another search or clear your filters." : data.canModify ? "Create your first policy to share it with employees." : "Published policies will appear here."}</p>{!!data.policies.length && <button className={button} onClick={() => { setSearch(""); setPendingOnly(false); }}>Clear filters</button>}</div>}
+                </section>
+            </>}
         </>}
     </main>;
 }

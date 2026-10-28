@@ -1,5 +1,6 @@
 "use client";
 
+import ModuleHeader from "@/components/ModuleHeader";
 import LoadingState from "@/components/LoadingState";
 import ModuleGuard from "@/components/ModuleGuard";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -190,7 +191,7 @@ export default function ItTicketsPage() {
     return (
         <ModuleGuard moduleKey="it-tickets">
             <main className="space-y-6 p-6 text-[var(--foreground)]">
-                <section className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-6 shadow-[var(--shadow-soft)]">
+                <ModuleHeader>
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
                             <h1 className="text-2xl font-semibold text-[var(--text)]">IT Tickets</h1>
@@ -207,7 +208,7 @@ export default function ItTicketsPage() {
                             {message}
                         </div>
                     )}
-                </section>
+                </ModuleHeader>
 
                 <section className="grid gap-6 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]">
                     <form onSubmit={submit} className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-5 shadow-[var(--shadow-soft)]">
@@ -332,7 +333,7 @@ export default function ItTicketsPage() {
                                 No tickets submitted yet.
                             </div>
                         )}
-                        {loading && <LoadingState compact />}
+                        {loading && !tickets.length && <LoadingState compact variant="cards" label="Loading tickets" />}
                     </div>
                 </section>
             </main>

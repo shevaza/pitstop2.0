@@ -1,20 +1,28 @@
-type LoadingStateProps = { label?: string; compact?: boolean };
+import Skeleton from "@/components/Skeleton";
 
-export default function LoadingState({ label = "Loading page", compact = false }: LoadingStateProps) {
+type LoadingStateProps = { label?: string; compact?: boolean; variant?: "page" | "cards" | "chart" };
+
+export default function LoadingState({ label = "Loading page", compact = false, variant = "page" }: LoadingStateProps) {
   return (
-    <div role="status" aria-live="polite" aria-busy="true" className={compact ? "flex items-center justify-center p-4" : "flex min-h-[45vh] items-center justify-center p-6"}>
+    <div role="status" aria-live="polite" aria-busy="true" className={compact ? "w-full space-y-3 p-3" : "w-full space-y-6 p-6"}>
       <span className="sr-only">{label}</span>
-      <div aria-hidden="true" className="flex flex-col items-center gap-6">
-        <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--glass)] shadow-[var(--shadow-soft)]">
-          <span className="absolute h-11 w-11 rounded-full border-[3px] border-[var(--primary-surface)]" />
-          <span className="h-11 w-11 animate-spin rounded-full border-[3px] border-transparent border-t-[var(--primary)] border-r-[var(--primary)] motion-reduce:animate-none" />
-          <span className="absolute h-2 w-2 rounded-full bg-[var(--primary)]" />
+      {variant === "chart" ? (
+        <div aria-hidden="true" className="flex h-52 items-end gap-4 border-b border-l border-[var(--border)] px-4 pb-2">
+          {[45, 70, 55, 90, 65, 80, 50, 60].map((height, index) => <div key={index} className="flex h-full flex-1 items-end"><span className="block w-full animate-pulse rounded-t-md bg-[var(--border)] motion-reduce:animate-none" style={{ height: `${height}%` }} /></div>)}
         </div>
-        {!compact && <div className="flex w-48 animate-pulse flex-col items-center gap-2 motion-reduce:animate-none">
-          <span className="h-2 w-full rounded-full bg-[var(--primary-surface)]" />
-          <span className="h-2 w-28 rounded-full bg-[var(--primary-surface)]" />
-        </div>}
-      </div>
+      ) : (
+        <>
+          {!compact && variant === "page" && <div className="space-y-3"><Skeleton className="h-7 w-48" /><Skeleton className="h-4 w-64 max-w-full" /></div>}
+          <div aria-hidden="true" className={!compact && variant === "page" ? "grid gap-4 sm:grid-cols-3" : "space-y-3"}>
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--glass)] p-4">
+                <Skeleton className="h-4 w-2/5" /><Skeleton className="h-6 w-3/5" /><Skeleton className="h-3 w-4/5" />
+              </div>
+            ))}
+          </div>
+          {!compact && variant === "page" && <div aria-hidden="true" className="space-y-5 rounded-xl border border-[var(--border)] p-5">{Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-5 w-full" />)}</div>}
+        </>
+      )}
     </div>
   );
 }

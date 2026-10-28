@@ -1,6 +1,7 @@
 "use client";
 
-import LoadingState from "@/components/LoadingState";
+import ModuleHeader from "@/components/ModuleHeader";
+import { TableSkeleton } from "@/components/Skeleton";
 import ModuleGuard from "@/components/ModuleGuard";
 import { assetGroups } from "@/lib/asset-groups";
 import { useRouter } from "next/navigation";
@@ -375,7 +376,7 @@ export default function AssetsPage() {
     return (
         <ModuleGuard moduleKey="assets">
             <main className="space-y-6 p-6 text-[var(--foreground)]">
-                <section className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-6 shadow-[var(--shadow-soft)] backdrop-blur-2xl">
+                <ModuleHeader>
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
                             <h1 className="text-2xl font-semibold text-[var(--text)]">Asset Management</h1>
@@ -408,7 +409,7 @@ export default function AssetsPage() {
                             {message}
                         </div>
                     )}
-                </section>
+                </ModuleHeader>
 
                 <section className="grid gap-4 lg:grid-cols-3">
                     <article className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-5 shadow-[var(--shadow-soft)] backdrop-blur-2xl">
@@ -589,6 +590,7 @@ export default function AssetsPage() {
                                 </tr>
                             </thead>
                             <tbody>
+                                {loading && !paginatedAssets.length && <TableSkeleton columns={6} />}
                                 {paginatedAssets.map((asset) => (
                                     <tr
                                         key={asset.id}
@@ -661,7 +663,7 @@ export default function AssetsPage() {
                             {filteredAssets.length
                                 ? `Showing ${(page - 1) * PAGE_SIZE + 1}-${Math.min(page * PAGE_SIZE, filteredAssets.length)} of ${filteredAssets.length}`
                                 : loading
-                                    ? <LoadingState compact label="Loading assets" />
+                                    ? "Loading assets?"
                                     : "No results"}
                         </div>
                         <div className="flex gap-2">

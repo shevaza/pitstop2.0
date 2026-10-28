@@ -1,4 +1,5 @@
 "use client";
+import ModuleHeader from "@/components/ModuleHeader";
 import { useState } from "react";
 import ModuleGuard from "@/components/ModuleGuard";
 import Papa from "papaparse";
@@ -104,7 +105,9 @@ export default function Home() {
   return (
     <ModuleGuard moduleKey="bulk">
       <main className="p-6 space-y-6">
-        <h1 className="text-2xl font-semibold">M365 Bulk Updater</h1>
+        <ModuleHeader>
+            <h1 className="text-2xl font-semibold">M365 Bulk Updater</h1>
+        </ModuleHeader>
 
         <section className="space-y-2">
           <label className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--glass)] px-4 py-2 text-sm font-semibold text-[var(--text)] shadow-[var(--shadow-soft)] hover:bg-[var(--glass-strong)] cursor-pointer">

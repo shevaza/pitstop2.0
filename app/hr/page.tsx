@@ -1,5 +1,6 @@
 "use client";
 
+import ModuleHeader from "@/components/ModuleHeader";
 import ModuleGuard from "@/components/ModuleGuard";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -78,7 +79,7 @@ export default function HrPage() {
     return (
         <ModuleGuard moduleKey="hr">
             <main className="space-y-6 p-6 text-[var(--foreground)]">
-                <section className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-6 shadow-[var(--shadow-soft)] backdrop-blur-2xl">
+                <ModuleHeader>
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
                             <h1 className="text-2xl font-semibold text-[var(--text)]">HR</h1>
@@ -93,7 +94,7 @@ export default function HrPage() {
                             Open Attendance
                         </Link>
                     </div>
-                </section>
+                </ModuleHeader>
 
                 <section className="grid gap-4 md:grid-cols-3">
                     {leaveBalances.map((item) => (

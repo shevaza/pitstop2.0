@@ -1,6 +1,7 @@
 "use client";
 
-import LoadingState from "@/components/LoadingState";
+import ModuleHeader from "@/components/ModuleHeader";
+import Skeleton, { TableSkeleton } from "@/components/Skeleton";
 import ModuleGuard from "@/components/ModuleGuard";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -81,7 +82,7 @@ export default function AttendancePage() {
     return (
         <ModuleGuard moduleKey="attendance">
           <div className="space-y-6 p-4 md:p-6">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <ModuleHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <h1 className="text-2xl font-semibold text-[var(--text)]">Attendance</h1>
                 <p className="text-sm text-[var(--text)]/70">
@@ -156,7 +157,7 @@ export default function AttendancePage() {
                   Settings
                 </a>
               </div>
-            </div>
+            </ModuleHeader>
 
             {error && (
               <div className="rounded-xl border border-[var(--border)]/40 bg-[color:rgba(255,255,255,0.06)] p-4 text-sm text-rose-500 shadow-[var(--shadow-soft)]">
@@ -168,7 +169,7 @@ export default function AttendancePage() {
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-4 shadow-[var(--shadow-soft)]">
                 <div className="text-xs uppercase tracking-wide text-[var(--text)]/60">Records</div>
                 <div className="mt-1 text-3xl font-semibold text-[var(--text)]">
-                  {loading ? "…" : filteredRows.length}
+                  {loading ? <Skeleton className="h-9 w-16" /> : filteredRows.length}
                 </div>
                 <div className="mt-1 text-xs text-[var(--text)]/60">
                   Showing up to {limit} rows
@@ -221,11 +222,7 @@ export default function AttendancePage() {
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr>
-                        <td className="px-3 py-4 text-[var(--text)]/70" colSpan={(data?.columns ?? []).length || 1}>
-                          <LoadingState compact />
-                        </td>
-                      </tr>
+                      <TableSkeleton columns={(data?.columns ?? []).length || 1} />
                     ) : filteredRows.length === 0 ? (
                       <tr>
                         <td className="px-3 py-4 text-[var(--text)]/70" colSpan={(data?.columns ?? []).length || 1}>
