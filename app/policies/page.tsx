@@ -3,9 +3,9 @@
 import { EMPLOYEE_TYPES } from "@/lib/employee-types";
 import ModuleHeader from "@/components/ModuleHeader";
 import LoadingState from "@/components/LoadingState";
-import ModuleGuard from "@/components/ModuleGuard";
+import AuthGuard from "@/components/AuthGuard";
 import type { Policy, PolicyAcknowledgement, PolicyList, PolicyAudience } from "@/lib/policy-types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const panel = "rounded-2xl border border-[var(--border)] bg-[var(--glass)] p-5 space-y-4";
 const button = "inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--glass)] px-4 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--glass-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-50";
@@ -16,6 +16,8 @@ function Policies() {
     const [selected, setSelected] = useState<Policy | null>(null);
     const [editor, setEditor] = useState<{ id?: string; version: number; expectedVersion?: number; title: string; body: string; target_roles: string[]; target_employee_types: string[]; target_departments: string[]; target_users: string[] } | null>(null);
     const [attachment, setAttachment] = useState<File | null>(null);
+    const attachmentInput = useRef<HTMLInputElement>(null);
+    const [removeAttachment, setRemoveAttachment] = useState(false);
     const [existingAttachment, setExistingAttachment] = useState<string | null>(null);
     const [audience, setAudience] = useState<PolicyAudience | null>(null);
     const [audienceSearch, setAudienceSearch] = useState("");
@@ -64,11 +66,19 @@ function Policies() {
             });
             file = { name: attachment.name, size: attachment.size, data };
         }
-        const response = await fetch("/api/policies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...editor, attachment: file }) });
+        const response = await fetch("/api/policies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...editor, attachment: file, remove_attachment: removeAttachment }) });
         if (!response.ok) throw new Error(await response.text());
         setEditor(null); setSelected(null); setReport(null);
         setNotice("Policy published. Recipients will see an alert and must acknowledge this version.");
         await load(); window.dispatchEvent(new Event("policies-changed"));
+    }
+    async function changeStatus(action: "hide" | "show" | "delete") {
+        if (!selected) return;
+        if (!window.confirm(action === "delete" ? "Delete this policy from the library? Revision and acknowledgement history will be retained for audit." : action === "hide" ? "Hide this policy from users and stop requiring acknowledgement?" : "Show this policy to its recipients again? Pending acknowledgements will be required.")) return;
+        const response = await fetch(`/api/policies/${selected.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, version: selected.version }) });
+        if (!response.ok) throw new Error(await response.text());
+        await load(); window.dispatchEvent(new Event("policies-changed"));
+        setNotice(action === "delete" ? "Policy deleted." : action === "hide" ? "Policy hidden." : "Policy visible to recipients.");
     }
     async function acknowledge() {
         if (!selected || !confirmed) return;
@@ -85,7 +95,7 @@ function Policies() {
     const everyone = !!editor && !editor.target_departments.length && !editor.target_users.length && !editor.target_employee_types.length && !editor.target_roles.length;
     function backToLibrary() { setEditor(null); setSelected(null); setReport(null); setConfirmed(false); }
     function startEditor(policy?: Policy) {
-        setAttachment(null); setExistingAttachment(policy?.attachment_name ?? null);
+        setAttachment(null); setRemoveAttachment(false); setExistingAttachment(policy?.attachment_name ?? null);
         setAudienceSearch(""); setNotice(""); setError(""); setReport(null); setSelected(null);
         setEditor(policy ? { id: policy.id, title: policy.title, body: policy.body, version: policy.version + 1, expectedVersion: policy.version, target_roles: policy.target_roles ?? [], target_employee_types: policy.target_employee_types ?? [], target_departments: policy.target_departments ?? [], target_users: policy.target_users ?? [] } : { title: "", body: "", version: 1, target_roles: [], target_employee_types: [], target_departments: [], target_users: [] });
     }
@@ -113,14 +123,16 @@ function Policies() {
                         {editor.expectedVersion && <p className="text-xs opacity-60">Current version: {editor.expectedVersion}. Updates require a higher version number.</p>}
                         <label className="block text-sm font-medium">Policy text<textarea required maxLength={100000} rows={18} placeholder="Enter the complete policy..." className={`${input} mt-2 min-h-80 resize-y leading-7`} value={editor.body} onChange={(event) => setEditor({ ...editor, body: event.target.value })} /></label>
                         <label className="block text-sm font-medium">Attachment (optional)
-                            <input type="file" disabled={busy} className={`${input} mt-2`} onChange={(event) => {
+                            <input ref={attachmentInput} type="file" disabled={busy} className={`${input} mt-2`} onChange={(event) => {
                                 const file = event.target.files?.[0] ?? null;
                                 if (file && (!file.size || file.size > 5 * 1024 * 1024)) {
                                     setError("Choose a non-empty file up to 5 MB."); event.target.value = ""; setAttachment(null); return;
                                 }
-                                setError(""); setAttachment(file);
+                                setError(""); setAttachment(file); if (file) setRemoveAttachment(false);
                             }} />
                         </label>
+                        {existingAttachment && <button type="button" className={button} disabled={busy} onClick={() => { setRemoveAttachment(!removeAttachment); setAttachment(null); if (attachmentInput.current) attachmentInput.current.value = ""; }}>{removeAttachment ? "Keep current attachment" : "Remove current attachment"}</button>}
+                        {removeAttachment && <p className="text-sm">The attachment will be removed when you publish this version.</p>}
                         <p className="break-words text-xs opacity-60">Up to 5 MB. Recipients can download the attachment.{existingAttachment && ` Current attachment: ${existingAttachment}. Choose a file to replace it, or leave empty to keep it.`}</p>
                     </section>
                     <section className={panel} aria-labelledby="recipients-heading">
@@ -147,10 +159,10 @@ function Policies() {
                     <div className="mx-auto max-w-3xl whitespace-pre-wrap break-words p-5 leading-8 md:p-8">{selected.body}</div>
                     {selected.attachment_name && <div className="border-t border-[var(--border)] p-5 md:px-8"><a className={`${button} max-w-full break-all`} href={`/api/policies/${selected.id}/attachment`} download>Download attachment: {selected.attachment_name}</a></div>}
                     <div className="space-y-4 border-t border-[var(--border)] bg-[var(--glass-strong)] p-5 md:p-8">
-                        {selected.requires_acknowledgement === false ? <p className="text-sm opacity-70">This policy is assigned to other recipients.</p> : selected.acknowledged_at ? <p role="status" className="text-sm font-medium text-emerald-500">Acknowledged on {new Date(selected.acknowledged_at).toLocaleString()}</p> : <><h3 className="font-semibold">Your acknowledgement</h3><label className="flex cursor-pointer items-start gap-3 text-sm leading-6"><input type="checkbox" className="mt-1 accent-[var(--primary)]" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I confirm that I have read this policy, version {selected.version}.</label><div className="flex justify-end"><button className={primaryButton} disabled={busy || !confirmed} onClick={() => void perform(acknowledge)}>{busy ? "Saving..." : "Acknowledge policy"}</button></div></>}
+                        {selected.is_hidden ? <p className="text-sm">This policy is hidden from recipients.</p> : selected.requires_acknowledgement === false ? <p className="text-sm opacity-70">This policy is assigned to other recipients.</p> : selected.acknowledged_at ? <p role="status" className="text-sm font-medium text-emerald-500">Acknowledged on {new Date(selected.acknowledged_at).toLocaleString()}</p> : <><h3 className="font-semibold">Your acknowledgement</h3><label className="flex cursor-pointer items-start gap-3 text-sm leading-6"><input type="checkbox" className="mt-1 accent-[var(--primary)]" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I confirm that I have read this policy, version {selected.version}.</label><div className="flex justify-end"><button className={primaryButton} disabled={busy || !confirmed} onClick={() => void perform(acknowledge)}>{busy ? "Saving..." : "Acknowledge policy"}</button></div></>}
                     </div>
                 </article>
-                {data.canModify && <section className={panel}><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-semibold">Policy management</h2><p className="mt-1 max-w-2xl break-words text-sm opacity-60">Audience: {selected.recipient_upns == null ? "Everyone" : `${[...(selected.target_roles ?? []).map((role) => `Role: ${role}`), ...(selected.target_employee_types ?? []).map((type) => `Type: ${type}`), ...selected.target_departments, ...selected.target_users].join(", ")} (${selected.recipient_upns.length} recipients)`}</p></div><div className="flex flex-wrap gap-2"><button className={button} disabled={busy} onClick={() => startEditor(selected)}>Edit policy</button><button className={button} disabled={busy} onClick={() => void perform(async () => {
+                {data.canModify && <section className={panel}><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-semibold">Policy management</h2><p className="mt-1 max-w-2xl break-words text-sm opacity-60">Audience: {selected.recipient_upns == null ? "Everyone" : `${[...(selected.target_roles ?? []).map((role) => `Role: ${role}`), ...(selected.target_employee_types ?? []).map((type) => `Type: ${type}`), ...selected.target_departments, ...selected.target_users].join(", ")} (${selected.recipient_upns.length} recipients)`}</p></div><div className="flex flex-wrap gap-2"><button className={button} disabled={busy} onClick={() => startEditor(selected)}>Edit policy / attachment</button><button className={button} disabled={busy} onClick={() => void perform(() => changeStatus(selected.is_hidden ? "show" : "hide"))}>{selected.is_hidden ? "Show policy" : "Hide policy"}</button><button className={button} disabled={busy} onClick={() => void perform(() => changeStatus("delete"))}>Delete policy</button><button className={button} disabled={busy} onClick={() => void perform(async () => {
                     const response = await fetch(`/api/policies/${selected.id}/acknowledgements`, { cache: "no-store" });
                     if (!response.ok) throw new Error(await response.text());
                     setReport((await response.json()).acknowledgements);
@@ -163,7 +175,7 @@ function Policies() {
                     <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 id="library-heading" className="text-xl font-semibold">Policy library</h2><p className="mt-1 text-sm opacity-60">Showing {filteredPolicies.length} of {data.policies.length} policies</p></div><button className={button} disabled={busy} onClick={() => void perform(load)}>{busy ? "Refreshing..." : "Refresh"}</button></div>
                     <div className="flex flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--glass)] p-4 sm:flex-row sm:items-center"><label className="flex-1"><span className="sr-only">Search policies</span><input type="search" className={input} placeholder="Search policies by title or content..." value={search} onChange={(event) => setSearch(event.target.value)} /></label><label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm"><input type="checkbox" className="accent-[var(--primary)]" checked={pendingOnly} onChange={(event) => setPendingOnly(event.target.checked)} />Pending only</label>{(search || pendingOnly) && <button className="text-sm text-[var(--primary)] hover:underline" onClick={() => { setSearch(""); setPendingOnly(false); }}>Clear filters</button>}</div>
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filteredPolicies.map((policy) => <article key={policy.id} className={`${panel} flex flex-col gap-4 !space-y-0`}>
-                        <div><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${policy.requires_acknowledgement === false ? "bg-[var(--glass-strong)]" : policy.acknowledged_at ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-[var(--text)]"}`}>{policy.requires_acknowledgement === false ? "Other recipients" : policy.acknowledged_at ? "Acknowledged" : "Acknowledgement required"}</span></div>
+                        <div><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${policy.requires_acknowledgement === false ? "bg-[var(--glass-strong)]" : policy.acknowledged_at ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-[var(--text)]"}`}>{policy.is_hidden ? "Hidden" : policy.requires_acknowledgement === false ? "Other recipients" : policy.acknowledged_at ? "Acknowledged" : "Acknowledgement required"}</span></div>
                         <div><h3 className="break-words text-lg font-semibold">{policy.title}</h3><p className="mt-1 text-xs opacity-60">Version {policy.version} / Updated {new Date(policy.updated_at).toLocaleDateString()}</p></div>
                         <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-6 opacity-70">{policy.body}</p>
                         <div className="!mt-auto flex justify-end border-t border-[var(--border)] pt-4"><button className={button} disabled={busy} onClick={() => { setSelected(policy); setConfirmed(false); setReport(null); setEditor(null); window.scrollTo({ top: 0, behavior: "instant" }); }}>{policy.requires_acknowledgement !== false && !policy.acknowledged_at ? "Review policy" : "Read policy"}</button></div>
@@ -175,4 +187,4 @@ function Policies() {
     </main>;
 }
 
-export default function PoliciesPage() { return <ModuleGuard moduleKey="policies"><Policies /></ModuleGuard>; }
+export default function PoliciesPage() { return <AuthGuard><Policies /></AuthGuard>; }

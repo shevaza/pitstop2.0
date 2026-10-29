@@ -1,3 +1,4 @@
+import { assertPolicyUser } from "@/lib/policy-enforcement";
 import { assertModuleAccess } from "@/lib/module-auth";
 import { getModuleAccessLevelMap } from "@/lib/module-access";
 import { listPolicies, publishPolicy, policyError } from "@/lib/policies";
@@ -7,6 +8,7 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 const schema = z.object({
+    remove_attachment: z.boolean().default(false),
     attachment: z.object({
         name: z.string().trim().min(1).max(255).regex(/^[^\x00-\x1f\x7f/\\]+$/),
         size: z.number().int().positive().max(5 * 1024 * 1024),
@@ -19,11 +21,11 @@ const schema = z.object({
     target_departments: z.array(z.string().trim().min(1).max(256)).max(1000).default([]),
     target_users: z.array(z.string().trim().email().toLowerCase()).max(10000).default([]),
     title: z.string().trim().min(1).max(200), body: z.string().trim().min(1).max(100000),
-}).refine((value) => !value.id || (!!value.version && !!value.expectedVersion && value.version > value.expectedVersion), { message: "Enter a version greater than the current version" });
+}).refine((value) => !(value.attachment && value.remove_attachment), { message: "Choose replacement or removal" }).refine((value) => !value.id || (!!value.version && !!value.expectedVersion && value.version > value.expectedVersion), { message: "Enter a version greater than the current version" });
 
 export async function GET() {
     try {
-        const upn = await assertModuleAccess("policies");
+        const upn = await assertPolicyUser();
         const levels = await getModuleAccessLevelMap(upn);
         const policies = await listPolicies(upn, levels.policies === "modify");
         return Response.json({ policies, pendingCount: policies.filter((p) => p.requires_acknowledgement && !p.acknowledged_at).length, canModify: levels.policies === "modify" });

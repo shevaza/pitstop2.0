@@ -1,10 +1,10 @@
-import { assertModuleAccess } from "@/lib/module-auth";
+import { assertPolicyUser } from "@/lib/policy-enforcement";
 import { acknowledgePolicy, policyError } from "@/lib/policies";
 import { z } from "zod";
 export const runtime = "nodejs";
 export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
     try {
-        const upn = await assertModuleAccess("policies");
+        const upn = await assertPolicyUser();
         const id = z.string().uuid().parse((await context.params).id);
         const { version } = z.object({ version: z.number().int().positive() }).parse(await req.json());
         await acknowledgePolicy(id, version, upn);

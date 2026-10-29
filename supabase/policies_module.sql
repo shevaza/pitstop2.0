@@ -53,6 +53,8 @@ alter table public.policies add column if not exists target_roles text[] not nul
 alter table public.policy_revisions add column if not exists target_roles text[] not null default '{}';
 alter table public.policies add column if not exists target_employee_types text[] not null default '{}';
 alter table public.policy_revisions add column if not exists target_employee_types text[] not null default '{}';
+alter table public.policies add column if not exists is_hidden boolean not null default false;
+alter table public.policies add column if not exists deleted_at timestamptz;
 alter table public.policies add column if not exists attachment jsonb;
 alter table public.policy_revisions add column if not exists attachment jsonb;
 drop function if exists public.publish_policy(uuid, integer, text, text, text);
@@ -62,11 +64,14 @@ drop function if exists public.publish_policy(uuid, integer, text, text, text, i
 
 drop function if exists public.publish_policy(uuid, integer, text, text, text, integer, text[], text[], text[], jsonb, text[]);
 
+drop function if exists public.publish_policy(uuid, integer, text, text, text, integer, text[], text[], text[], jsonb, text[], text[]);
+
 -- Publication and the immutable revision are committed together. Stale edits fail.
-create or replace function public.publish_policy(p_id uuid, p_version integer, p_title text, p_body text, p_actor text, p_new_version integer, p_departments text[], p_users text[], p_recipients text[], p_attachment jsonb default null, p_employee_types text[] default '{}', p_roles text[] default '{}')
+create or replace function public.publish_policy(p_id uuid, p_version integer, p_title text, p_body text, p_actor text, p_new_version integer, p_departments text[], p_users text[], p_recipients text[], p_attachment jsonb default null, p_employee_types text[] default '{}', p_roles text[] default '{}', p_remove_attachment boolean default false)
 returns public.policies language plpgsql security invoker set search_path = '' as $$
 declare result public.policies;
 begin
+  if p_remove_attachment and p_attachment is not null then raise sqlstate 'PT400' using message = 'Choose attachment removal or replacement'; end if;
   if p_employee_types is null or not (p_employee_types <@ array['Employee', 'Project Based', 'Intern']::text[]) or array_position(p_employee_types, null) is not null then
     raise sqlstate 'PT400' using message = 'Select valid employee types';
   end if;
@@ -81,7 +86,7 @@ begin
     values (p_title, p_body, lower(trim(p_actor)), p_new_version, p_departments, p_users, p_recipients, p_attachment, p_employee_types, p_roles) returning * into result;
   else
     select * into result from public.policies where id = p_id for update;
-    if not found then raise sqlstate 'PT404' using message = 'Policy not found'; end if;
+    if not found or result.deleted_at is not null then raise sqlstate 'PT404' using message = 'Policy not found'; end if;
     if p_version is distinct from result.version then
       raise sqlstate 'PT409' using message = 'Policy changed. Reload before editing.';
     end if;
@@ -89,7 +94,7 @@ begin
       raise sqlstate 'PT400' using message = 'Version must be greater than the current version';
     end if;
     update public.policies set title = p_title, body = p_body, version = p_new_version,
-      target_roles = p_roles, target_employee_types = p_employee_types, attachment = coalesce(p_attachment, result.attachment), target_departments = p_departments, target_users = p_users, recipient_upns = p_recipients,
+      target_roles = p_roles, target_employee_types = p_employee_types, attachment = case when p_remove_attachment then null else coalesce(p_attachment, result.attachment) end, target_departments = p_departments, target_users = p_users, recipient_upns = p_recipients,
       updated_by_upn = lower(trim(p_actor)), updated_at = now()
     where id = p_id returning * into result;
   end if;
@@ -104,7 +109,7 @@ create or replace function public.acknowledge_policy(p_id uuid, p_version intege
 returns void language plpgsql security invoker set search_path = '' as $$
 declare current_version integer; recipients text[];
 begin
-  select version, recipient_upns into current_version, recipients from public.policies where id = p_id for share;
+  select version, recipient_upns into current_version, recipients from public.policies where id = p_id and not is_hidden and deleted_at is null for share;
   if not found then raise sqlstate 'PT404' using message = 'Policy not found'; end if;
   if p_version is distinct from current_version then
     raise sqlstate 'PT409' using message = 'Policy updated. Read the latest version before acknowledging.';
@@ -116,8 +121,24 @@ begin
   values (p_id, p_version, lower(trim(p_actor))) on conflict do nothing;
 end;
 $$;
-revoke all on function public.publish_policy(uuid, integer, text, text, text, integer, text[], text[], text[], jsonb, text[], text[]) from public, anon, authenticated;
+revoke all on function public.publish_policy(uuid, integer, text, text, text, integer, text[], text[], text[], jsonb, text[], text[], boolean) from public, anon, authenticated;
 revoke all on function public.acknowledge_policy(uuid, integer, text) from public, anon, authenticated;
-grant execute on function public.publish_policy(uuid, integer, text, text, text, integer, text[], text[], text[], jsonb, text[], text[]) to service_role;
+grant execute on function public.publish_policy(uuid, integer, text, text, text, integer, text[], text[], text[], jsonb, text[], text[], boolean) to service_role;
 grant execute on function public.acknowledge_policy(uuid, integer, text) to service_role;
+-- Hide/show/deletion serialize against acknowledgement and publication.
+create or replace function public.change_policy_status(p_id uuid, p_version integer, p_action text, p_actor text)
+returns void language plpgsql security invoker set search_path = '' as $$
+declare current_policy public.policies;
+begin
+  select * into current_policy from public.policies where id = p_id for update;
+  if not found or current_policy.deleted_at is not null then raise sqlstate 'PT404' using message = 'Policy not found'; end if;
+  if current_policy.version is distinct from p_version then raise sqlstate 'PT409' using message = 'Policy changed. Refresh before continuing.'; end if;
+  if p_action not in ('hide', 'show', 'delete') or p_action is null then raise sqlstate 'PT400' using message = 'Invalid policy action'; end if;
+  update public.policies set is_hidden = case when p_action = 'hide' then true when p_action = 'show' then false else is_hidden end,
+    deleted_at = case when p_action = 'delete' then now() else null end,
+    updated_at = now(), updated_by_upn = lower(trim(p_actor)) where id = p_id;
+end;
+$$;
+revoke all on function public.change_policy_status(uuid, integer, text, text) from public, anon, authenticated;
+grant execute on function public.change_policy_status(uuid, integer, text, text) to service_role;
 commit;

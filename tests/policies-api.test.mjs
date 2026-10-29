@@ -26,6 +26,7 @@ const context = { params: Promise.resolve({ id }) };
 function route(file, authorize, policies = {}) {
   return load(file, {
     '@/lib/module-auth': { assertModuleAccess: authorize },
+    '@/lib/policy-enforcement': { assertPolicyUser: () => authorize('policies') },
     '@/lib/module-access': { getModuleAccessLevelMap: async () => ({ policies: 'read' }) },
     '@/lib/policies': { policyError: (e) => e instanceof Response ? e : new Response('Error', { status: 500 }), ...policies },
   });
@@ -382,4 +383,64 @@ test('required policy endpoints reject unsigned or disallowed identities', async
   });
   await assert.rejects(api.assertPolicyUser(), (e) => e.status === 403);
  }
+});
+
+
+test('Policies page API stays available to assigned users without module permissions', async () => {
+ const api = load('app/api/policies/route.ts', {
+  '@/lib/policy-enforcement': { assertPolicyUser: async () => 'employee@example.com' },
+  '@/lib/module-auth': { assertModuleAccess: async () => { throw new Response('Forbidden', { status: 403 }); } },
+  '@/lib/module-access': { getModuleAccessLevelMap: async () => ({ policies: 'none' }) },
+  '@/lib/policies': {
+   listPolicies: async (upn, manager) => { assert.equal(upn, 'employee@example.com'); assert.equal(manager, false); return [{ id, requires_acknowledgement: true, acknowledged_at: null }]; },
+   policyError: (e) => e,
+  },
+ });
+ const response = await api.GET();
+ assert.equal(response.status, 200);
+ const data = await response.json(); assert.equal(data.pendingCount, 1); assert.equal(data.canModify, false);
+});
+
+
+test('hidden policies only appear to managers and deleted policies never enter listings', async () => {
+ const service = load('lib/policies.ts', { '@/lib/supabase-admin': { supabaseRequest: async (table) => table === 'policies' ? [
+  { id: 'active', version: 1, recipient_upns: null },
+  { id: 'hidden', version: 1, recipient_upns: null, is_hidden: true },
+  { id: 'deleted', version: 1, recipient_upns: null, deleted_at: 'now' },
+ ] : [] } });
+ assert.deepEqual(Array.from(await service.listPolicies('user@example.com'), (p) => p.id), ['active']);
+ const manager = await service.listPolicies('manager@example.com', true);
+ assert.deepEqual(Array.from(manager, (p) => p.id), ['active', 'hidden']);
+ assert.equal(manager[1].requires_acknowledgement, false);
+});
+
+test('hidden and deleted attachments cannot be downloaded by recipients', async () => {
+ let policy = { recipient_upns: null, is_hidden: true, attachment: { name: 'file', data: 'YWJj', size: 3 } };
+ const service = load('lib/policies.ts', { '@/lib/supabase-admin': { supabaseRequest: async () => [policy] } });
+ await assert.rejects(service.downloadPolicyAttachment(id, 'user@example.com', false), (e) => e.status === 404);
+ assert.equal((await service.downloadPolicyAttachment(id, 'manager@example.com', true)).name, 'file');
+ policy.deleted_at = 'now';
+ await assert.rejects(service.downloadPolicyAttachment(id, 'manager@example.com', true), (e) => e.status === 404);
+});
+
+test('policy status changes require modify access before any database changes', async () => {
+ let called = false;
+ const denied = route('app/api/policies/[id]/route.ts', async (_key, level) => { assert.equal(level, 'modify'); throw new Response('Forbidden', { status: 403 }); }, { changePolicyStatus: async () => { called = true; } });
+ assert.equal((await denied.PATCH(request({ action: 'delete', version: 1 }), context)).status, 403); assert.equal(called, false);
+ let args;
+ const api = route('app/api/policies/[id]/route.ts', async () => 'manager@example.com', { changePolicyStatus: async (...input) => { args = input; } });
+ for (const action of ['hide', 'show', 'delete']) {
+  assert.equal((await api.PATCH(request({ action, version: 2 }), context)).status, 200);
+  assert.deepEqual(args, [id, 2, action, 'manager@example.com']);
+ }
+ assert.equal((await api.PATCH(request({ action: 'destroy', version: 2 }), context)).status, 400);
+ assert.equal((await api.PATCH(request({ action: 'delete' }), context)).status, 400);
+});
+
+test('attachment removal is explicit and cannot be combined with replacement', async () => {
+ let saved;
+ const api = route('app/api/policies/route.ts', async () => 'manager@example.com', { publishPolicy: async (input) => { saved = input; return { id }; } });
+ const body = { id, version: 2, expectedVersion: 1, title: 'Title', body: 'Body', remove_attachment: true };
+ assert.equal((await api.POST(request(body))).status, 200); assert.equal(saved.remove_attachment, true);
+ assert.equal((await api.POST(request({ ...body, attachment: { name: 'file', size: 3, data: 'YWJj' } }))).status, 400);
 });

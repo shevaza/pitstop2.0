@@ -5,6 +5,8 @@ export type Policy = {
     title: string;
     body: string;
     attachment_name?: string | null;
+    is_hidden: boolean;
+    deleted_at: string | null;
     version: number;
     target_roles: string[];
     target_employee_types: string[];

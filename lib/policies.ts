@@ -15,20 +15,20 @@ async function allRows<T>(table: string, query: Record<string, string>) {
 
 export async function listPolicies(upn: string, canModify = false) {
     const [policies, acknowledgements] = await Promise.all([
-        allRows<Omit<Policy, "acknowledged_at">>("policies", { select: "id,title,body,version,target_roles,target_employee_types,target_departments,target_users,recipient_upns,updated_by_upn,created_at,updated_at,attachment_name:attachment->>name", order: "updated_at.desc,id.asc" }),
+        allRows<Omit<Policy, "acknowledged_at">>("policies", { select: "id,title,body,is_hidden,deleted_at,version,target_roles,target_employee_types,target_departments,target_users,recipient_upns,updated_by_upn,created_at,updated_at,attachment_name:attachment->>name", order: "updated_at.desc,id.asc" }),
         allRows<PolicyAcknowledgement>("policy_acknowledgements", {
             select: "*", user_upn: `eq.${upn.trim().toLowerCase()}`, order: "policy_id.asc,version.asc",
         }),
     ]);
     const acknowledged = new Map(acknowledgements.map((row) => [`${row.policy_id}:${row.version}`, row.acknowledged_at]));
-    return policies.filter((policy) => canModify || policy.recipient_upns == null || policy.recipient_upns.includes(upn.trim().toLowerCase())).map((policy) => ({ ...policy, requires_acknowledgement: policy.recipient_upns == null || policy.recipient_upns.includes(upn.trim().toLowerCase()), acknowledged_at: acknowledged.get(`${policy.id}:${policy.version}`) ?? null }));
+    return policies.filter((policy) => !policy.deleted_at && (canModify || (!policy.is_hidden && (policy.recipient_upns == null || policy.recipient_upns.includes(upn.trim().toLowerCase()))))).map((policy) => ({ ...policy, requires_acknowledgement: !policy.is_hidden && (policy.recipient_upns == null || policy.recipient_upns.includes(upn.trim().toLowerCase())), acknowledged_at: acknowledged.get(`${policy.id}:${policy.version}`) ?? null }));
 }
 
 export async function listPolicyAcknowledgements(id: string) {
     return allRows<PolicyAcknowledgement>("policy_acknowledgements", { select: "*", policy_id: `eq.${id}`, order: "version.desc,user_upn.asc" });
 }
 
-export async function publishPolicy(input: { id?: string; version?: number; expectedVersion?: number; target_roles?: string[]; target_employee_types?: string[]; target_departments?: string[]; target_users?: string[]; title: string; body: string; attachment?: PolicyAttachment }, upn: string) {
+export async function publishPolicy(input: { id?: string; version?: number; expectedVersion?: number; target_roles?: string[]; target_employee_types?: string[]; target_departments?: string[]; target_users?: string[]; title: string; body: string; attachment?: PolicyAttachment; remove_attachment?: boolean }, upn: string) {
     const roles = input.target_roles ?? [];
     const employeeTypes = input.target_employee_types ?? [];
     if (employeeTypes.some((type) => !isEmployeeType(type))) throw new Response("Select Employee, Project Based, or Intern.", { status: 400 });
@@ -46,7 +46,7 @@ export async function publishPolicy(input: { id?: string; version?: number; expe
     const { attachment, ...policy } = await supabaseRequest<Policy & { attachment: PolicyAttachment | null }>("rpc/publish_policy", {
         method: "POST", body: { p_id: input.id ?? null, p_version: input.expectedVersion ?? null, p_new_version: input.version ?? 1,
             p_roles: roles, p_employee_types: employeeTypes, p_departments: departments, p_users: users, p_recipients: recipients,
-            p_attachment: input.attachment ?? null, p_title: input.title, p_body: input.body, p_actor: upn.trim().toLowerCase() },
+            p_remove_attachment: input.remove_attachment ?? false, p_attachment: input.attachment ?? null, p_title: input.title, p_body: input.body, p_actor: upn.trim().toLowerCase() },
     });
     return { ...policy, attachment_name: attachment?.name ?? null };
 }
@@ -70,13 +70,19 @@ export function policyError(error: unknown) {
 }
 
 export async function downloadPolicyAttachment(id: string, upn: string, canModify: boolean) {
-    const [policy] = await supabaseRequest<{ recipient_upns: string[] | null; attachment: PolicyAttachment | null }[]>("policies", {
-        query: { select: "recipient_upns,attachment", id: `eq.${id}`, limit: 1 },
+    const [policy] = await supabaseRequest<{ is_hidden?: boolean; deleted_at?: string | null; recipient_upns: string[] | null; attachment: PolicyAttachment | null }[]>("policies", {
+        query: { select: "is_hidden,deleted_at,recipient_upns,attachment", id: `eq.${id}`, limit: 1 },
     });
-    if (!policy) throw new Response("Policy not found", { status: 404 });
+    if (!policy || policy.deleted_at || (!canModify && policy.is_hidden)) throw new Response("Policy not found", { status: 404 });
     if (!canModify && policy.recipient_upns != null && !policy.recipient_upns.includes(upn.trim().toLowerCase())) {
         throw new Response("Policy is not assigned to you.", { status: 403 });
     }
     if (!policy.attachment) throw new Response("No attachment found", { status: 404 });
     return policy.attachment;
+}
+
+export async function changePolicyStatus(id: string, version: number, action: "hide" | "show" | "delete", upn: string) {
+    await supabaseRequest("rpc/change_policy_status", {
+        method: "POST", body: { p_id: id, p_version: version, p_action: action, p_actor: upn.trim().toLowerCase() },
+    });
 }
