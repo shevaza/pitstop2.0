@@ -1,4 +1,6 @@
 // app/api/users/[id]/route.ts
+import { getUserRole, setUserRole } from "@/lib/user-roles";
+import { isEmployeeType } from "@/lib/employee-types";
 import { graphFetch } from "@/lib/graph";
 import { assertModuleAccess } from "@/lib/module-auth";
 
@@ -17,6 +19,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
             `/users/${userId}?$select=id,displayName,givenName,surname,userPrincipalName,jobTitle,department,officeLocation,mobilePhone,employeeId,employeeType,usageLocation,accountEnabled`
         );
 
+        user.role = await getUserRole(user.id);
         let manager: any = null;
         try {
             manager = await graphFetch<any>(`/users/${userId}/manager?$select=id,userPrincipalName,displayName`);
@@ -39,6 +42,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         const userId = decodeURIComponent(id);
         const body = await req.json();
 
+        if ("employeeType" in body && body.employeeType !== "" && !isEmployeeType(body.employeeType)) {
+            return new Response("Employee type must be Employee, Project Based, or Intern.", { status: 400 });
+        }
+        if ("role" in body && (typeof body.role !== "string" || body.role.trim().length > 100 || /[\x00-\x1f\x7f]/.test(body.role))) {
+            return new Response("Role must be text of up to 100 characters.", { status: 400 });
+        }
         const allowed = [
             "displayName", "givenName", "surname", "jobTitle", "department",
             "officeLocation", "mobilePhone", "employeeId", "employeeType", "usageLocation",
@@ -64,6 +73,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
             }
         }
 
+        if ("role" in body) {
+            // Resolve UPN routes to the stable directory ID used by policy audiences.
+            const user = await graphFetch<{ id: string }>(`/users/${userId}?$select=id`);
+            await setUserRole(user.id, body.role.trim());
+        }
         return new Response(null, { status: 204 });
     } catch (e: any) {
         if (e instanceof Response) return e;

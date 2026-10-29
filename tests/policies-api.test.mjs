@@ -10,8 +10,10 @@ function load(file, imports) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   });
   const exports = {};
-  runInNewContext(outputText, { exports, Response, Error, SyntaxError, console, Map, require: (name) => {
+  runInNewContext(outputText, { exports, Response, Error, SyntaxError, console, Map, Buffer, require: (name) => {
     if (name === '@/lib/policy-audience' && !(name in imports)) return { getPolicyAudience: async () => ({ departments: [], users: [] }) };
+    if (name === '@/lib/employee-types') return { EMPLOYEE_TYPES: ['Employee', 'Project Based', 'Intern'], isEmployeeType: (value) => ['Employee', 'Project Based', 'Intern'].includes(value) };
+    if (name === '@/lib/user-roles' && !(name in imports)) return { listUserRoles: async () => new Map(), getUserRole: async () => '', setUserRole: async () => {} };
     if (name === 'zod') return { z };
     if (name in imports) return imports[name];
     throw new Error(`Unexpected import ${name}`);
@@ -113,7 +115,7 @@ test('publication resolves departments and selected users into a union and prese
     '@/lib/policy-audience': { getPolicyAudience: async () => ({ departments: ['IT', 'HR'], users: [
       { upn: 'it@example.com', department: 'IT' }, { upn: 'hr@example.com', department: 'HR' }, { upn: 'other@example.com', department: '' },
     ] }) },
-    '@/lib/supabase-admin': { supabaseRequest: async (_table, { body }) => { saved = body; } },
+    '@/lib/supabase-admin': { supabaseRequest: async (_table, { body }) => { saved = body; return { id, attachment: body.p_attachment }; } },
   });
   await service.publishPolicy({ id, version: 7, expectedVersion: 2, title: 'Title', body: 'Body', target_departments: ['IT'], target_users: ['it@example.com', 'hr@example.com'] }, ' HR@Example.com ');
   assert.deepEqual(Array.from(saved.p_recipients), ['it@example.com', 'hr@example.com']);
@@ -134,10 +136,250 @@ test('directory lookup follows Microsoft Graph pagination and returns department
   const paths = [];
   const directory = load('lib/policy-audience.ts', { '@/lib/graph': { graphFetch: async (path) => {
     paths.push(path);
-    return paths.length === 1 ? { value: [{ userPrincipalName: 'A@Example.com', displayName: 'Alice', department: ' IT ' }], '@odata.nextLink': 'https://graph.microsoft.com/v1.0/users?$skiptoken=next' } : { value: [{ userPrincipalName: 'b@example.com', department: 'HR' }] };
+    return paths.length === 1 ? { value: [{ userPrincipalName: 'A@Example.com', displayName: 'Alice', department: ' IT ', employeeType: ' Intern ' }], '@odata.nextLink': 'https://graph.microsoft.com/v1.0/users?$skiptoken=next' } : { value: [{ userPrincipalName: 'b@example.com', department: 'HR' }] };
   } } });
   const audience = await directory.getPolicyAudience();
   assert.equal(paths[1], '/users?$skiptoken=next');
+  assert.match(paths[0], /employeeType/);
   assert.deepEqual(Array.from(audience.departments), ['HR', 'IT']);
   assert.equal(audience.users.find((u) => u.name === 'Alice').upn, 'a@example.com');
+  assert.equal(audience.users.find((u) => u.name === 'Alice').employeeType, 'Intern');
+});
+
+
+test('attachment publication validates size and content before saving', async () => {
+  let saved;
+  const api = route('app/api/policies/route.ts', async () => 'hr@example.com', {
+    publishPolicy: async (input) => { saved = input; return { id }; },
+  });
+  const attachment = { name: 'policy.pdf', size: 3, data: 'YWJj' };
+  assert.equal((await api.POST(request({ title: 'Title', body: 'Body', attachment }))).status, 201);
+  assert.equal(saved.attachment.name, 'policy.pdf');
+  for (const invalid of [
+    { ...attachment, size: 0 }, { ...attachment, size: 6 * 1024 * 1024 },
+    { ...attachment, size: 4 }, { ...attachment, data: '!!!!' },
+    { ...attachment, name: '../secret' }, { ...attachment, name: 'bad\r\nname' },
+  ]) assert.equal((await api.POST(request({ title: 'Title', body: 'Body', attachment: invalid }))).status, 400);
+});
+
+test('attachment downloads enforce policy audience, allow managers, and handle missing files', async () => {
+  let policy = { recipient_upns: ['employee@example.com'], attachment: { name: 'policy.pdf', size: 3, data: 'YWJj' } };
+  const service = load('lib/policies.ts', { '@/lib/supabase-admin': {
+    supabaseRequest: async () => policy ? [policy] : [],
+  } });
+  assert.equal((await service.downloadPolicyAttachment(id, ' Employee@Example.com ', false)).name, 'policy.pdf');
+  await assert.rejects(service.downloadPolicyAttachment(id, 'other@example.com', false), (e) => e.status === 403);
+  assert.equal((await service.downloadPolicyAttachment(id, 'manager@example.com', true)).data, 'YWJj');
+  policy.attachment = null;
+  await assert.rejects(service.downloadPolicyAttachment(id, 'employee@example.com', false), (e) => e.status === 404);
+  policy = null;
+  await assert.rejects(service.downloadPolicyAttachment(id, 'employee@example.com', false), (e) => e.status === 404);
+});
+
+test('download endpoint returns original bytes with safe download headers', async () => {
+  const api = route('app/api/policies/[id]/attachment/route.ts', async () => 'employee@example.com', {
+    downloadPolicyAttachment: async (_id, upn, canModify) => {
+      assert.equal(_id, id); assert.equal(upn, 'employee@example.com'); assert.equal(canModify, false);
+      return { name: "Company policy.pdf", size: 3, data: 'YWJj' };
+    },
+  });
+  const response = await api.GET(request({}), context);
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), 'abc');
+  assert.match(response.headers.get('Content-Disposition'), /attachment;.*Company%20policy.pdf/);
+  assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+});
+
+
+test('publication stores attachment atomically and returns only its name', async () => {
+  const attachment = { name: 'policy.pdf', size: 3, data: 'YWJj' };
+  const service = load('lib/policies.ts', { '@/lib/supabase-admin': {
+    supabaseRequest: async (table, { body }) => {
+      assert.equal(table, 'rpc/publish_policy');
+      assert.equal(body.p_attachment, attachment);
+      return { id, attachment };
+    },
+  } });
+  const result = await service.publishPolicy({ title: 'Title', body: 'Body', attachment }, 'hr@example.com');
+  assert.equal(result.attachment_name, 'policy.pdf');
+  assert.equal(result.attachment, undefined);
+});
+
+
+test('employee types target matching users and narrow department/user audiences', async () => {
+ let saved;
+ const service = load('lib/policies.ts', {
+  '@/lib/policy-audience': { getPolicyAudience: async () => ({ departments: ['IT', 'HR'], users: [
+   { upn: 'employee@example.com', department: 'IT', employeeType: 'Employee' },
+   { upn: 'intern@example.com', department: 'IT', employeeType: 'Intern' },
+   { upn: 'project@example.com', department: 'HR', employeeType: 'Project Based' },
+   { upn: 'legacy@example.com', department: 'HR', employeeType: 'Contractor' },
+  ] }) },
+  '@/lib/supabase-admin': { supabaseRequest: async (_table, { body }) => { saved = body; return { id }; } },
+ });
+ const base = { title: 'Title', body: 'Body' };
+ await service.publishPolicy({ ...base, target_employee_types: ['Employee', 'Project Based'] }, 'hr@example.com');
+ assert.deepEqual(Array.from(saved.p_recipients), ['employee@example.com', 'project@example.com']);
+ assert.deepEqual(Array.from(saved.p_employee_types), ['Employee', 'Project Based']);
+ await service.publishPolicy({ ...base, target_departments: ['IT'], target_employee_types: ['Intern'] }, 'hr@example.com');
+ assert.deepEqual(Array.from(saved.p_recipients), ['intern@example.com']);
+ await service.publishPolicy({ ...base, target_users: ['project@example.com'], target_employee_types: ['Project Based'] }, 'hr@example.com');
+ assert.deepEqual(Array.from(saved.p_recipients), ['project@example.com']);
+ await assert.rejects(service.publishPolicy({ ...base, target_departments: ['HR'], target_employee_types: ['Intern'] }, 'hr@example.com'), (e) => e.status === 400);
+ await assert.rejects(service.publishPolicy({ ...base, target_employee_types: ['Contractor'] }, 'hr@example.com'), (e) => e.status === 400);
+ await service.publishPolicy(base, 'hr@example.com'); assert.equal(saved.p_recipients, null);
+});
+
+test('publication API restricts employee types to the three supported values', async () => {
+ const api = route('app/api/policies/route.ts', async () => 'hr@example.com', { publishPolicy: async () => ({ id }) });
+ for (const type of ['Employee', 'Project Based', 'Intern']) {
+  assert.equal((await api.POST(request({ title: 'Title', body: 'Body', target_employee_types: [type] }))).status, 201);
+ }
+ for (const types of [['Contractor'], ['employee'], [''], [null], 'Intern']) {
+  assert.equal((await api.POST(request({ title: 'Title', body: 'Body', target_employee_types: types }))).status, 400);
+ }
+});
+
+test('user edits reject unsupported employee types before Microsoft Graph writes', async () => {
+ const calls = [];
+ const api = load('app/api/users/[id]/route.ts', {
+  '@/lib/module-auth': { assertModuleAccess: async () => 'hr@example.com' },
+  '@/lib/graph': { graphFetch: async (...args) => { calls.push(args); } },
+ });
+ for (const value of ['Contractor', 'employee', null, 123]) {
+  assert.equal((await api.PATCH(request({ employeeType: value }), context)).status, 400);
+ }
+ assert.equal(calls.length, 0);
+ for (const value of ['Employee', 'Project Based', 'Intern']) {
+  assert.equal((await api.PATCH(request({ employeeType: value }), context)).status, 204);
+  assert.equal(JSON.parse(calls.at(-1)[1].body).employeeType, value);
+ }
+ assert.equal((await api.PATCH(request({ employeeType: '', jobTitle: 'Engineer' }), context)).status, 204);
+ assert.equal(JSON.parse(calls.at(-1)[1].body).employeeType, undefined);
+});
+
+
+test('roles target their members and intersect employee type and department filters', async () => {
+ let saved;
+ const service = load('lib/policies.ts', {
+  '@/lib/policy-audience': { getPolicyAudience: async () => ({ roles: ['Engineer', 'Manager'], departments: ['IT', 'HR'], users: [
+   { upn: 'a@example.com', role: 'Engineer', employeeType: 'Employee', department: 'IT' },
+   { upn: 'b@example.com', role: 'Engineer', employeeType: 'Intern', department: 'HR' },
+   { upn: 'c@example.com', role: 'Manager', employeeType: 'Employee', department: 'IT' },
+  ] }) },
+  '@/lib/supabase-admin': { supabaseRequest: async (_path, { body }) => { saved = body; return { id }; } },
+ });
+ const base = { title: 'Title', body: 'Body', target_roles: ['Engineer'] };
+ await service.publishPolicy(base, 'hr@example.com');
+ assert.deepEqual(Array.from(saved.p_recipients), ['a@example.com', 'b@example.com']);
+ assert.deepEqual(Array.from(saved.p_roles), ['Engineer']);
+ await service.publishPolicy({ ...base, target_employee_types: ['Employee'], target_departments: ['IT'] }, 'hr@example.com');
+ assert.deepEqual(Array.from(saved.p_recipients), ['a@example.com']);
+ await assert.rejects(service.publishPolicy({ ...base, target_users: ['c@example.com'] }, 'hr@example.com'), (e) => e.status === 400);
+ await assert.rejects(service.publishPolicy({ ...base, target_roles: ['Missing'] }, 'hr@example.com'), (e) => e.status === 400);
+});
+
+test('roles come from saved assignments matched by stable directory IDs', async () => {
+ const service = load('lib/policy-audience.ts', {
+  '@/lib/user-roles': { listUserRoles: async () => new Map([['azure-id', 'Engineer'], ['deleted-id', 'Obsolete']]) },
+  '@/lib/graph': { graphFetch: async () => ({ value: [{ id: 'azure-id', userPrincipalName: 'renamed@example.com' }] }) },
+ });
+ const directory = await service.getPolicyAudience();
+ assert.deepEqual(Array.from(directory.roles), ['Engineer']);
+ assert.equal(directory.users[0].role, 'Engineer');
+});
+
+test('user role saves use stable IDs, trim values, support clearing, and reject invalid text', async () => {
+ const saved = [];
+ const graphCalls = [];
+ const api = load('app/api/users/[id]/route.ts', {
+  '@/lib/module-auth': { assertModuleAccess: async () => 'hr@example.com' },
+  '@/lib/user-roles': { setUserRole: async (...args) => saved.push(args) },
+  '@/lib/graph': { graphFetch: async (...args) => { graphCalls.push(args); return { id: 'azure-id' }; } },
+ });
+ for (const invalid of [null, 123, 'x'.repeat(101), 'bad\nrole']) assert.equal((await api.PATCH(request({ role: invalid }), context)).status, 400);
+ assert.equal(graphCalls.length, 0);
+ assert.equal((await api.PATCH(request({ role: ' Engineer ' }), context)).status, 204);
+ assert.deepEqual(saved[0], ['azure-id', 'Engineer']);
+ assert.equal((await api.PATCH(request({ role: '' }), context)).status, 204);
+ assert.deepEqual(saved[1], ['azure-id', '']);
+ assert.equal(graphCalls.some((call) => call[1]?.method === 'PATCH'), false);
+});
+
+test('role assignment upserts and deletion never alter the directory cache', async () => {
+ const calls = [];
+ const roles = load('lib/user-roles.ts', { '@/lib/supabase-admin': { supabaseRequest: async (...args) => { calls.push(args); return []; } } });
+ await roles.setUserRole('azure-id', 'Engineer');
+ assert.equal(calls[0][0], 'user_policy_roles'); assert.equal(calls[0][1].body.role, 'Engineer');
+ assert.equal(calls[0][1].query.on_conflict, 'user_id');
+ await roles.setUserRole('azure-id', '');
+ assert.equal(calls[1][1].method, 'DELETE'); assert.equal(calls[1][1].query.user_id, 'eq.azure-id');
+});
+
+
+test('mandatory acknowledgement blocks module actions, allows policy reading, and unlocks after completion', async () => {
+ let pending = true, checks = 0;
+ const api = load('lib/module-auth.ts', {
+  '@/lib/request-auth': { getRequestIdentity: async () => ({ upn: 'employee@example.com' }) },
+  '@/lib/module-access': { canAccessModuleWithLevel: async () => true },
+  '@/lib/policy-enforcement': { assertPoliciesAcknowledged: async () => { checks++; if (pending) throw new Response('Required', { status: 428 }); } },
+ });
+ await assert.rejects(api.assertModuleAccess('users', 'modify'), (e) => e.status === 428);
+ await assert.rejects(api.assertModuleAccess('dashboard'), (e) => e.status === 428);
+ await assert.rejects(api.assertModuleAccess('policies', 'modify'), (e) => e.status === 428);
+ assert.equal(await api.assertModuleAccess('policies'), 'employee@example.com');
+ assert.equal(checks, 3);
+ pending = false;
+ assert.equal(await api.assertModuleAccess('users', 'modify'), 'employee@example.com');
+});
+
+test('mandatory checks include only pending assigned policies and fail closed on storage errors', async () => {
+ let fail = false, policies = [
+  { id: 'pending', requires_acknowledgement: true, acknowledged_at: null },
+  { id: 'done', requires_acknowledgement: true, acknowledged_at: 'now' },
+  { id: 'other', requires_acknowledgement: false, acknowledged_at: null },
+ ];
+ const api = load('lib/policy-enforcement.ts', {
+  '@/lib/request-auth': { getRequestIdentity: async () => ({ upn: 'employee@example.com' }) },
+  '@/lib/rbac': { isAllowed: async () => true },
+  '@/lib/policies': { listPolicies: async () => { if (fail) throw new Error('Storage unavailable'); return policies; } },
+ });
+ assert.equal(await api.assertPolicyUser(), 'employee@example.com');
+ assert.deepEqual(Array.from(await api.requiredPolicies('employee@example.com'), (p) => p.id), ['pending']);
+ await assert.rejects(api.assertPoliciesAcknowledged('employee@example.com'), (e) => e.status === 428);
+ policies = []; await api.assertPoliciesAcknowledged('employee@example.com');
+ fail = true;
+ await assert.rejects(api.assertPoliciesAcknowledged('employee@example.com'), (e) => e.status === 503);
+});
+
+test('assigned users can acknowledge through the required endpoint without policy module access', async () => {
+ let recorded;
+ const api = load('app/api/policies/required/[id]/acknowledge/route.ts', {
+  '@/lib/policy-enforcement': { assertPolicyUser: async () => 'employee@example.com' },
+  '@/lib/policies': { acknowledgePolicy: async (...args) => { recorded = args; }, policyError: (e) => e },
+ });
+ assert.equal((await api.POST(request({ version: 3, user_upn: 'spoof@example.com' }), context)).status, 200);
+ assert.deepEqual(recorded, [id, 3, 'employee@example.com']);
+});
+
+test('required attachment endpoint enforces recipient access even for managers', async () => {
+ let args;
+ const api = load('app/api/policies/required/[id]/attachment/route.ts', {
+  '@/lib/policy-enforcement': { assertPolicyUser: async () => 'employee@example.com' },
+  '@/lib/policies': { downloadPolicyAttachment: async (...input) => { args = input; throw new Response('Not assigned', { status: 403 }); }, policyError: (e) => e },
+ });
+ assert.equal((await api.GET(request({}), context)).status, 403);
+ assert.deepEqual(args, [id, 'employee@example.com', false]);
+});
+
+
+test('required policy endpoints reject unsigned or disallowed identities', async () => {
+ for (const identity of [null, { upn: 'outside@example.com' }]) {
+  const api = load('lib/policy-enforcement.ts', {
+   '@/lib/request-auth': { getRequestIdentity: async () => identity },
+   '@/lib/rbac': { isAllowed: async () => false },
+   '@/lib/policies': {},
+  });
+  await assert.rejects(api.assertPolicyUser(), (e) => e.status === 403);
+ }
 });

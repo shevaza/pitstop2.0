@@ -1,3 +1,4 @@
+import { assertPoliciesAcknowledged } from "@/lib/policy-enforcement";
 import { z } from "zod";
 import { addTicketComment, getTicketById } from "@/lib/it-tickets";
 import { canAccessModuleWithLevel } from "@/lib/module-access";
@@ -24,6 +25,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             return new Response("Forbidden", { status: 403 });
         }
 
+        await assertPoliciesAcknowledged(identity.upn);
         const { id } = await ctx.params;
         const ticket = await getTicketById(decodeURIComponent(id));
         if (!ticket || ticket.requester_upn !== identity.upn.trim().toLowerCase()) {

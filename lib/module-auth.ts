@@ -1,3 +1,4 @@
+import { assertPoliciesAcknowledged } from "@/lib/policy-enforcement";
 import { canAccessModuleWithLevel } from "@/lib/module-access";
 import type { AppModuleKey, ModuleAccessLevel } from "@/lib/modules";
 import { getRequestIdentity } from "@/lib/request-auth";
@@ -10,5 +11,6 @@ export async function assertModuleAccess(moduleKey: AppModuleKey, requiredLevel:
         throw new Response("Forbidden", { status: 403 });
     }
 
+    if (moduleKey !== "policies" || requiredLevel !== "read") await assertPoliciesAcknowledged(upn);
     return upn;
 }

@@ -1,4 +1,5 @@
 "use client";
+import { EMPLOYEE_TYPES, isEmployeeType } from "@/lib/employee-types";
 import LoadingState from "@/components/LoadingState";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Combobox, Transition } from "@headlessui/react";
@@ -20,6 +21,7 @@ type User = {
     mobilePhone?: string;
     employeeId?: string;
     employeeType?: string;
+    role?: string;
     usageLocation?: string;
 };
 
@@ -198,13 +200,13 @@ export default function UserDetailPage() {
         const payload: Record<string, any> = {};
         for (const key of [
             "displayName", "givenName", "surname", "jobTitle", "department",
-            "officeLocation", "mobilePhone", "employeeId", "employeeType", "usageLocation",
+            "officeLocation", "mobilePhone", "employeeId", "employeeType", "role", "usageLocation",
         ]) {
             payload[key] = form.get(key) ?? "";
         }
         payload.managerUPN = (form.get("managerUPN") as string) || "";
         for (const key of Object.keys(payload)) {
-            if (key !== "managerUPN" && payload[key] === "") delete payload[key];
+            if (key !== "managerUPN" && key !== "role" && payload[key] === "") delete payload[key];
         }
 
         const res = await fetch(`/api/users/${encodeURIComponent(id)}`, {
@@ -305,15 +307,20 @@ export default function UserDetailPage() {
                                 ["mobilePhone", "Mobile Phone"],
                                 ["employeeId", "Employee ID"],
                                 ["employeeType", "Employee Type"],
+                                ["role", "Role"],
                                 ["usageLocation", "Usage Location (e.g. US)"],
                             ] as const).map(([key, label]) => (
                                 <label key={key} className="block">
                                     <div className="mb-1 text-xs text-[var(--text)]/70">{label}</div>
-                                    <input
+                                    {key === "employeeType" ? <select name={key} defaultValue={isEmployeeType(user.employeeType) ? user.employeeType : ""} className="w-full rounded border border-[var(--border)] bg-[var(--glass)] p-2 text-[var(--text)]">
+                                        <option value="" disabled>Select employee type</option>
+                                        {EMPLOYEE_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                                    </select> : <input
                                         name={key}
+                                        maxLength={key === "role" ? 100 : undefined}
                                         defaultValue={(user as any)[key] ?? ""}
                                         className="w-full rounded border border-[var(--border)] bg-[var(--glass)] p-2 text-[var(--text)] placeholder:text-[var(--text)]/50 focus:border-[var(--text)]/60 focus:outline-none"
-                                    />
+                                    />}
                                 </label>
                             ))}
 

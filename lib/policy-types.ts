@@ -1,8 +1,13 @@
+export type PolicyAttachment = { name: string; size: number; data: string };
+
 export type Policy = {
     id: string;
     title: string;
     body: string;
+    attachment_name?: string | null;
     version: number;
+    target_roles: string[];
+    target_employee_types: string[];
     target_departments: string[];
     target_users: string[];
     recipient_upns: string[] | null;
@@ -22,4 +27,4 @@ export type PolicyAcknowledgement = {
 
 export type PolicyList = { policies: Policy[]; pendingCount: number; canModify: boolean };
 
-export type PolicyAudience = { departments: string[]; users: { upn: string; name: string; department: string }[] };
+export type PolicyAudience = { roles: string[]; departments: string[]; users: { upn: string; name: string; department: string; employeeType: string; role: string }[] };
